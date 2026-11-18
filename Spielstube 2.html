@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spielstube</title>
+<meta name="color-scheme" content="dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============ STYLES ============ */
+:root{
+  --bg:#171411; --bg2:#201c18; --line:#352f28; --ink:#ece6da; --dim:#8f8678; --accent:#d9a441;
+  --display:'Instrument Serif',Georgia,'Times New Roman',serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+  --ease:cubic-bezier(.2,.7,.2,1);
+  color-scheme:dark;
+  box-sizing:border-box;
+  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{margin:0;background:var(--bg)}
+body{height:100%;color:var(--ink);font:400 16px/1.5 var(--mono);-webkit-font-smoothing:antialiased;overflow:hidden}
+#app{height:100%;display:flex;flex-direction:column;min-height:0}
+.view{flex:1;min-height:0;display:flex;flex-direction:column;animation:enter .35s var(--ease)}
+@keyframes enter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* wiederverwendbare Bausteine */
+.btn{min-height:48px;min-width:48px;padding:0 24px;border:1px solid var(--ink);background:transparent;color:var(--ink);font:500 15px var(--mono);border-radius:2px;cursor:pointer;transition:background .2s,color .2s,border-color .2s;touch-action:manipulation}
+.btn:hover,.btn:focus-visible{background:var(--ink);color:var(--bg)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#1a1308}
+.btn.primary:hover,.btn.primary:focus-visible{background:var(--ink);border-color:var(--ink)}
+.btn.ghost{border-color:var(--line);color:var(--dim);padding:0 16px}
+.btn.ghost:hover,.btn.ghost:focus-visible{border-color:var(--ink);background:transparent;color:var(--ink)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:500;line-height:1}
+.card{display:grid;grid-template-columns:1fr auto;gap:8px 24px;align-items:end;padding:28px;border:1px solid var(--line);border-radius:2px;color:inherit;text-decoration:none;background:var(--bg2);transition:border-color .25s,transform .25s var(--ease)}
+.card:hover,.card:focus-visible{border-color:var(--accent);transform:translateY(-3px)}
+.card h2{margin:0;font:400 40px/1 var(--display)}
+.card p{margin:8px 0 0;color:var(--dim);font-size:14px;max-width:46ch}
+.card .meta{text-align:right;color:var(--dim);font-size:13px}
+.card .meta .num{display:block;color:var(--accent);font-size:40px;margin-top:6px}
+
+/* Übersicht */
+.home{padding:clamp(24px,6vw,72px);overflow:auto}
+.home h1{margin:0 0 8px;font:400 clamp(56px,11vw,128px)/.9 var(--display);letter-spacing:-.02em}
+.home .lead{margin:0 0 clamp(32px,6vw,64px);color:var(--dim);max-width:44ch}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr));gap:16px}
+
+/* Spielgerüst */
+.bar{display:flex;align-items:center;gap:16px;padding:12px clamp(16px,3vw,32px)}
+.bar h2{margin:0;font:400 28px/1 var(--display);flex:1}
+.bar .best{color:var(--dim);font-size:13px;display:flex;gap:10px;align-items:baseline}
+.bar .best .num{color:var(--accent);font-size:22px}
+.stage{flex:1;min-height:0;display:flex;gap:clamp(12px,2vw,24px);padding:0 clamp(16px,3vw,32px) clamp(12px,2vw,24px)}
+
+/* Color Picker */
+.sliders{display:flex;gap:clamp(8px,1.5vw,16px);flex:none}
+.sl{display:flex;flex-direction:column;align-items:center;gap:8px;width:clamp(52px,7vw,72px)}
+.sl .track{position:relative;flex:1;width:100%;min-height:0;border-radius:2px;border:1px solid var(--line);touch-action:none;cursor:ns-resize;user-select:none;-webkit-user-select:none}
+.sl .thumb{position:absolute;left:-3px;right:-3px;height:14px;transform:translateY(50%);background:var(--ink);border:3px solid var(--bg);border-radius:3px;pointer-events:none;box-shadow:0 0 0 1px var(--ink)}
+.sl label{color:var(--dim);font-size:13px;height:20px}
+.field{position:relative;flex:1;min-width:0;border-radius:2px;overflow:hidden;background:var(--bg2)}
+.field .layer{position:absolute;inset:0}
+.field .corner{position:absolute;top:clamp(12px,2.5vw,28px);right:clamp(14px,2.5vw,32px);font-size:clamp(48px,9vw,120px);transition:color .2s}
+.field .tag{position:absolute;bottom:14px;font-size:13px;opacity:.75;transition:color .2s}
+.field .actions{position:absolute;right:clamp(12px,2vw,24px);bottom:clamp(12px,2vw,24px);display:flex;gap:12px;align-items:center}
+.field .note{font-size:14px;font-weight:500;padding:6px 10px;background:var(--bg);color:var(--accent);border-radius:2px;animation:enter .4s var(--ease)}
+.field .actions .btn{background:var(--bg);border-color:var(--bg);color:var(--ink)}
+.field .actions .btn:hover,.field .actions .btn:focus-visible{background:var(--accent);border-color:var(--accent);color:#1a1308}
+.compare .mine{clip-path:inset(0 0 0 100%);transition:clip-path .9s var(--ease) .15s}
+.compare.go .mine{clip-path:inset(0 0 0 50%)}
+
+@media (max-height:480px){
+  .bar{padding-top:6px;padding-bottom:6px}.bar h2{font-size:22px}.btn{min-height:44px}
+  .sl label{height:16px}.home{padding:20px}.home h1{font-size:48px}
+}
+@media (max-width:560px) and (orientation:portrait){.card{grid-template-columns:1fr}.card .meta{text-align:left}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ============ SCORE-MODUL ============
+   Ein localStorage-Key, ein Objekt pro Spiel-ID: { "color-picker": { best: 87 } }
+   Fallback auf Arbeitsspeicher, falls der Speicher nicht verfügbar ist. */
+const Score = (() => {
+  const KEY = 'spielstube.scores';
+  let mem = {};
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || mem; } catch (e) { return mem; } };
+  const save = d => { mem = d; try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {} };
+  return {
+    getBest: id => { const e = load()[id]; return e && typeof e.best === 'number' ? e.best : 0; },
+    /* gibt true zurück, wenn ein neuer Bestwert erreicht wurde */
+    submitScore(id, s) {
+      const d = load(); const prev = d[id] && d[id].best;
+      if (typeof prev === 'number' && s <= prev) return false;
+      d[id] = { best: s }; save(d); return prev !== undefined || s > 0;
+    }
+  };
+})();
+
+/* ============ HILFSFUNKTIONEN ============ */
+const h = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+const hsl = (H, S, L) => `hsl(${H} ${S}% ${L}%)`;
+const rnd = (a, b) => Math.round(a + Math.random() * (b - a));
+function hslToRgb(H, S, L) {
+  S /= 100; L /= 100; const k = n => (n + H / 30) % 12, a = S * Math.min(L, 1 - L);
+  const f = n => L - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return [f(0), f(8), f(4)];
+}
+function toLab([r, g, b]) {
+  const lin = c => c <= .04045 ? c / 12.92 : Math.pow((c + .055) / 1.055, 2.4);
+  r = lin(r); g = lin(g); b = lin(b);
+  const X = (r * .4124 + g * .3576 + b * .1805) / .95047, Y = r * .2126 + g * .7152 + b * .0722, Z = (r * .0193 + g * .1192 + b * .9505) / 1.08883;
+  const f = t => t > .008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116;
+  return [116 * f(Y) - 16, 500 * (f(X) - f(Y)), 200 * (f(Y) - f(Z))];
+}
+const deltaE = (a, b) => { const A = toLab(hslToRgb(...a)), B = toLab(hslToRgb(...b)); return Math.hypot(A[0] - B[0], A[1] - B[1], A[2] - B[2]); };
+/* Score: 100 * e^(-ΔE/25). ΔE 2 ≈ 92, ΔE 10 ≈ 67, ΔE 30 ≈ 30, ΔE 60 ≈ 9 */
+const scoreFromDelta = d => Math.round(100 * Math.exp(-d / 25));
+const inkOn = L => L > 58 ? '#1a1612' : '#f3eee4';
+
+/* ============ SPIEL-REGISTRY ============
+   NEUES SPIEL HINZUFÜGEN:
+   Hänge unten im Array EIN Objekt an:
+   { id:'mein-spiel', title:'…', description:'…', players:1,   // 2 = Zwei-Spieler-Spiel
+     init(container, api){ … },   // baut das Spiel in container auf
+     destroy(){ … } }             // optional: Timer/Listener aufräumen
+   api = { Score, h, back() }. Nutze Score.getBest(id) und Score.submitScore(id, punkte).
+   Karte, Route (#mein-spiel) und Highscore erscheinen automatisch. */
+const GAMES = [];
+
+/* ---------- Spiel 1: Color Picker ---------- */
+GAMES.push((() => {
+  const ID = 'color-picker'; let timers = [], raf = 0, cleanups = [];
+  const clear = () => { timers.forEach(clearInterval); timers.forEach(clearTimeout); timers = []; cancelAnimationFrame(raf); cleanups.forEach(f => f()); cleanups = []; };
+
+  function slider(label, aria, max, onInput) {
+    const sl = h('div', 'sl'), tr = h('div', 'track'), th = h('div', 'thumb'), lb = h('label', null, label);
+    tr.append(th); sl.append(tr, lb);
+    tr.tabIndex = 0; tr.setAttribute('role', 'slider'); tr.setAttribute('aria-label', aria); tr.setAttribute('aria-orientation', 'vertical');
+    tr.setAttribute('aria-valuemin', 0); tr.setAttribute('aria-valuemax', max);
+    let v = 0;
+    const set = (x, fire) => { v = Math.max(0, Math.min(max, x)); th.style.bottom = (v / max * 100) + '%'; tr.setAttribute('aria-valuenow', Math.round(v)); if (fire) onInput(v); };
+    const fromY = e => { const r = tr.getBoundingClientRect(); set((1 - (e.clientY - r.top) / r.height) * max, true); };
+    tr.addEventListener('pointerdown', e => { tr.setPointerCapture(e.pointerId); fromY(e); });
+    tr.addEventListener('pointermove', e => { if (tr.hasPointerCapture(e.pointerId)) fromY(e); });
+    tr.addEventListener('keydown', e => {
+      const st = max / 100 * (e.shiftKey ? 10 : 1), d = { ArrowUp: st, ArrowRight: st, ArrowDown: -st, ArrowLeft: -st }[e.key];
+      if (d) { e.preventDefault(); set(v + d, true); }
+    });
+    return { el: sl, track: tr, set, get: () => v };
+  }
+
+  return {
+    id: ID, title: 'Color Picker', players: 1,
+    description: 'Merke dir eine Farbe und mische sie danach aus dem Gedächtnis nach.',
+    init(c, api) {
+      const bar = h('div', 'bar'), back = h('button', 'btn ghost', 'Zurück'), title = h('h2', null, 'Color Picker'), best = h('div', 'best');
+      back.onclick = api.back; best.append(h('span', null, 'Bestwert'));
+      const bestNum = h('span', 'num', String(Score.getBest(ID))); best.append(bestNum);
+      bar.append(back, title, best);
+      const stage = h('div', 'stage'); c.append(bar, stage);
+      const refreshBest = () => bestNum.textContent = String(Score.getBest(ID));
+
+      function round() {
+        clear(); stage.replaceChildren();
+        /* faire Zufallsfarbe: kräftig, mittlere Helligkeit */
+        const target = [rnd(0, 359), rnd(45, 90), rnd(30, 68)];
+        const field = h('div', 'field'), layer = h('div', 'layer'), corner = h('div', 'corner num', '5');
+        layer.style.background = hsl(...target); corner.style.color = inkOn(target[2]);
+        field.append(layer, corner); stage.append(field);
+
+        const end = Date.now() + 5000; let shown = 5;
+        const iv = setInterval(() => {
+          const left = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+          if (left !== shown) { shown = left; corner.textContent = String(left); }
+          if (Date.now() >= end) { clearInterval(iv); timers.push(setTimeout(mix, 300)); }
+        }, 100); timers.push(iv);
+
+        function mix() {
+          stage.replaceChildren();
+          const cur = [180, 50, 50];
+          const mine = h('div', 'layer'), f = h('div', 'field'), sub = h('div', 'actions'), go = h('button', 'btn primary', 'Abschicken');
+          sub.append(go); f.append(mine, sub);
+          const paint = () => {
+            mine.style.background = hsl(...cur);
+            sH.track.style.background = 'linear-gradient(to top,' + [0, 60, 120, 180, 240, 300, 360].map(x => hsl(x, 100, 50)).join(',') + ')';
+            sS.track.style.background = `linear-gradient(to top,${hsl(cur[0], 0, cur[2])},${hsl(cur[0], 100, cur[2])})`;
+            sL.track.style.background = `linear-gradient(to top,#000,${hsl(cur[0], cur[1], 50)},#fff)`;
+          };
+          const sH = slider('H', 'Farbton', 360, v => { cur[0] = Math.round(v); paint(); });
+          const sS = slider('S', 'Sättigung', 100, v => { cur[1] = Math.round(v); paint(); });
+          const sL = slider('L', 'Helligkeit', 100, v => { cur[2] = Math.round(v); paint(); });
+          sH.set(cur[0]); sS.set(cur[1]); sL.set(cur[2]); paint();
+          const sw = h('div', 'sliders'); sw.append(sH.el, sS.el, sL.el);
+          stage.append(sw, f);
+          go.onclick = () => result(cur.slice());
+        }
+
+        function result(mine) {
+          stage.replaceChildren();
+          const final = scoreFromDelta(deltaE(target, mine));
+          const f = h('div', 'field compare'), a = h('div', 'layer'), m = h('div', 'layer mine'), sc = h('div', 'corner num', '0');
+          a.style.background = hsl(...target); m.style.background = hsl(...mine); sc.style.color = inkOn(mine[2]);
+          const t1 = h('div', 'tag', 'Original'), t2 = h('div', 'tag', 'Deine Farbe');
+          t1.style.left = '16px'; t1.style.color = inkOn(target[2]); t2.style.left = 'calc(50% + 16px)'; t2.style.color = inkOn(mine[2]);
+          const act = h('div', 'actions'); f.append(a, m, t1, t2, sc, act); stage.append(f);
+          requestAnimationFrame(() => requestAnimationFrame(() => f.classList.add('go')));
+          const t0 = performance.now(), D = 3000;
+          const step = now => {
+            const p = Math.min(1, (now - t0) / D), e = 1 - Math.pow(1 - p, 3);
+            sc.textContent = String(Math.round(final * e));
+            if (p < 1) raf = requestAnimationFrame(step); else finish();
+          };
+          raf = requestAnimationFrame(step);
+          function finish() {
+            const isNew = final > 0 && final > Score.getBest(ID); Score.submitScore(ID, final); refreshBest();
+            if (isNew) act.append(h('span', 'note', 'Neuer Bestwert'));
+            const again = h('button', 'btn', 'Nochmal'); again.onclick = round; act.append(again); again.focus({ preventScroll: true });
+          }
+        }
+      }
+      round();
+    },
+    destroy() { clear(); }
+  };
+})());
+
+/* ============ ROUTER ============
+   Hash-Routing: #color-picker öffnet das Spiel, leer = Übersicht. */
+const app = document.getElementById('app'); let active = null;
+const api = { Score, h, back: () => { location.hash = ''; } };
+
+function home() {
+  const v = h('main', 'view home');
+  v.append(h('h1', null, 'Spielstube'), h('p', 'lead', 'Kleine Spiele für zwischendurch. Wähle eines aus und versuche, deinen Bestwert zu schlagen.'));
+  const g = h('div', 'grid');
+  GAMES.forEach(game => {
+    const a = h('a', 'card'); a.href = '#' + game.id;
+    const l = h('div'); l.append(h('h2', null, game.title), h('p', null, game.description));
+    const m = h('div', 'meta', 'Bestwert'); m.append(h('span', 'num', String(Score.getBest(game.id))));
+    a.append(l, m); g.append(a);
+  });
+  v.append(g); return v;
+}
+
+function route() {
+  if (active && active.destroy) active.destroy(); active = null;
+  const id = location.hash.replace(/^#\/?/, ''), game = GAMES.find(x => x.id === id);
+  app.replaceChildren();
+  if (game) {
+    const v = h('main', 'view'); app.append(v); active = game; game.init(v, api);
+  } else app.append(home());
+}
+addEventListener('hashchange', route);
+route();
+</script>
+</body>
+</html>
