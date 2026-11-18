@@ -11,7 +11,8 @@
 <style>
 /* ============ STYLES ============ */
 :root{
-  --bg:#171411; --bg2:#201c18; --line:#352f28; --ink:#ece6da; --dim:#8f8678; --accent:#d9a441;
+  --bg:#161310; --bg2:#25201b; --line:#4d453b; --ink:#f7f2e8; --dim:#b8ae9d; --accent:#f2b94b;
+  --r:28px; --gap:16px; --pad:clamp(16px,3vw,28px);
   --display:'Instrument Serif',Georgia,'Times New Roman',serif;
   --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
   --ease:cubic-bezier(.2,.7,.2,1);
@@ -28,54 +29,55 @@ body{height:100%;color:var(--ink);font:400 16px/1.5 var(--mono);-webkit-font-smo
 @keyframes enter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
 /* wiederverwendbare Bausteine */
-.btn{min-height:48px;min-width:48px;padding:0 24px;border:1px solid var(--ink);background:transparent;color:var(--ink);font:500 15px var(--mono);border-radius:2px;cursor:pointer;transition:background .2s,color .2s,border-color .2s;touch-action:manipulation}
+.btn{min-height:52px;min-width:52px;padding:0 28px;border:2px solid var(--ink);background:transparent;color:var(--ink);font:500 15px var(--mono);border-radius:999px;cursor:pointer;transition:background .2s,color .2s,border-color .2s;touch-action:manipulation}
 .btn:hover,.btn:focus-visible{background:var(--ink);color:var(--bg)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#1a1308}
 .btn.primary:hover,.btn.primary:focus-visible{background:var(--ink);border-color:var(--ink)}
-.btn.ghost{border-color:var(--line);color:var(--dim);padding:0 16px}
+.btn.ghost{border-color:var(--line);color:var(--dim);padding:0 22px}
 .btn.ghost:hover,.btn.ghost:focus-visible{border-color:var(--ink);background:transparent;color:var(--ink)}
-:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
 .num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:500;line-height:1}
-.card{display:grid;grid-template-columns:1fr auto;gap:8px 24px;align-items:end;padding:28px;border:1px solid var(--line);border-radius:2px;color:inherit;text-decoration:none;background:var(--bg2);transition:border-color .25s,transform .25s var(--ease)}
+.chip{padding:8px 14px;border-radius:999px;background:var(--bg);color:var(--ink);font-size:14px;font-weight:500;line-height:1}
+.card{display:grid;grid-template-columns:1fr auto;gap:var(--gap) 24px;align-items:end;padding:32px;border:2px solid var(--line);border-radius:var(--r);color:inherit;text-decoration:none;background:var(--bg2);transition:border-color .25s,transform .25s var(--ease)}
 .card:hover,.card:focus-visible{border-color:var(--accent);transform:translateY(-3px)}
-.card h2{margin:0;font:400 40px/1 var(--display)}
-.card p{margin:8px 0 0;color:var(--dim);font-size:14px;max-width:46ch}
-.card .meta{text-align:right;color:var(--dim);font-size:13px}
-.card .meta .num{display:block;color:var(--accent);font-size:40px;margin-top:6px}
+.card h2{margin:0;font:400 44px/1 var(--display)}
+.card p{margin:12px 0 0;color:var(--dim);font-size:15px;max-width:46ch}
+.card .meta{text-align:right;color:var(--dim);font-size:14px}
+.card .meta .num{display:block;color:var(--accent);font-size:44px;margin-top:8px}
 
 /* Übersicht */
 .home{padding:clamp(24px,6vw,72px);overflow:auto}
-.home h1{margin:0 0 8px;font:400 clamp(56px,11vw,128px)/.9 var(--display);letter-spacing:-.02em}
+.home h1{margin:0 0 12px;font:400 clamp(56px,11vw,128px)/.9 var(--display);letter-spacing:-.02em}
 .home .lead{margin:0 0 clamp(32px,6vw,64px);color:var(--dim);max-width:44ch}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr));gap:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr));gap:var(--gap)}
 
 /* Spielgerüst */
-.bar{display:flex;align-items:center;gap:16px;padding:12px clamp(16px,3vw,32px)}
-.bar h2{margin:0;font:400 28px/1 var(--display);flex:1}
-.bar .best{color:var(--dim);font-size:13px;display:flex;gap:10px;align-items:baseline}
-.bar .best .num{color:var(--accent);font-size:22px}
-.stage{flex:1;min-height:0;display:flex;gap:clamp(12px,2vw,24px);padding:0 clamp(16px,3vw,32px) clamp(12px,2vw,24px)}
+.bar{display:flex;align-items:center;gap:var(--gap);padding:var(--gap) var(--pad)}
+.bar h2{margin:0;font:400 32px/1 var(--display);flex:1}
+.bar .best{color:var(--dim);font-size:14px;display:flex;gap:12px;align-items:baseline}
+.bar .best .num{color:var(--accent);font-size:26px}
+.stage{flex:1;min-height:0;display:flex;gap:var(--gap);padding:0 var(--pad) var(--pad)}
 
 /* Color Picker */
-.sliders{display:flex;gap:clamp(8px,1.5vw,16px);flex:none}
-.sl{display:flex;flex-direction:column;align-items:center;gap:8px;width:clamp(52px,7vw,72px)}
-.sl .track{position:relative;flex:1;width:100%;min-height:0;border-radius:2px;border:1px solid var(--line);touch-action:none;cursor:ns-resize;user-select:none;-webkit-user-select:none}
-.sl .thumb{position:absolute;left:-3px;right:-3px;height:14px;transform:translateY(50%);background:var(--ink);border:3px solid var(--bg);border-radius:3px;pointer-events:none;box-shadow:0 0 0 1px var(--ink)}
-.sl label{color:var(--dim);font-size:13px;height:20px}
-.field{position:relative;flex:1;min-width:0;border-radius:2px;overflow:hidden;background:var(--bg2)}
+.sliders{display:flex;gap:12px;flex:none}
+.sl{display:flex;flex-direction:column;align-items:center;gap:12px;width:clamp(56px,7vw,76px)}
+.sl .track{position:relative;flex:1;width:100%;min-height:0;border-radius:999px;box-shadow:0 0 0 2px var(--line);touch-action:none;cursor:ns-resize;user-select:none;-webkit-user-select:none}
+.sl .thumb{position:absolute;left:50%;width:44px;height:44px;transform:translateX(-50%);border-radius:50%;border:4px solid var(--ink);box-shadow:0 0 0 2px var(--bg);pointer-events:none}
+.sl label{color:var(--ink);font-size:14px;font-weight:500;height:20px}
+.field{position:relative;flex:1;min-width:0;border-radius:var(--r);overflow:hidden;background:var(--bg2)}
 .field .layer{position:absolute;inset:0}
-.field .corner{position:absolute;top:clamp(12px,2.5vw,28px);right:clamp(14px,2.5vw,32px);font-size:clamp(48px,9vw,120px);transition:color .2s}
-.field .tag{position:absolute;bottom:14px;font-size:13px;opacity:.75;transition:color .2s}
-.field .actions{position:absolute;right:clamp(12px,2vw,24px);bottom:clamp(12px,2vw,24px);display:flex;gap:12px;align-items:center}
-.field .note{font-size:14px;font-weight:500;padding:6px 10px;background:var(--bg);color:var(--accent);border-radius:2px;animation:enter .4s var(--ease)}
+.field .corner{position:absolute;top:var(--pad);right:calc(var(--pad) + 4px);font-size:clamp(48px,9vw,120px);transition:color .2s}
+.field .tag{position:absolute;bottom:var(--pad)}
+.field .actions{position:absolute;right:var(--pad);bottom:var(--pad);display:flex;gap:12px;align-items:center}
+.field .note{color:var(--accent);animation:enter .4s var(--ease)}
 .field .actions .btn{background:var(--bg);border-color:var(--bg);color:var(--ink)}
 .field .actions .btn:hover,.field .actions .btn:focus-visible{background:var(--accent);border-color:var(--accent);color:#1a1308}
 .compare .mine{clip-path:inset(0 0 0 100%);transition:clip-path .9s var(--ease) .15s}
 .compare.go .mine{clip-path:inset(0 0 0 50%)}
 
 @media (max-height:480px){
-  .bar{padding-top:6px;padding-bottom:6px}.bar h2{font-size:22px}.btn{min-height:44px}
-  .sl label{height:16px}.home{padding:20px}.home h1{font-size:48px}
+  .bar{padding-top:8px;padding-bottom:8px}.bar h2{font-size:24px}.btn{min-height:44px}
+  .sl{gap:6px}.sl label{height:16px}.sl .thumb{width:40px;height:40px}.home{padding:20px}.home h1{font-size:48px}
 }
 @media (max-width:560px) and (orientation:portrait){.card{grid-template-columns:1fr}.card .meta{text-align:left}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -112,8 +114,8 @@ function hslToRgb(H, S, L) {
   const f = n => L - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
   return [f(0), f(8), f(4)];
 }
+const lin = c => c <= .04045 ? c / 12.92 : Math.pow((c + .055) / 1.055, 2.4);
 function toLab([r, g, b]) {
-  const lin = c => c <= .04045 ? c / 12.92 : Math.pow((c + .055) / 1.055, 2.4);
   r = lin(r); g = lin(g); b = lin(b);
   const X = (r * .4124 + g * .3576 + b * .1805) / .95047, Y = r * .2126 + g * .7152 + b * .0722, Z = (r * .0193 + g * .1192 + b * .9505) / 1.08883;
   const f = t => t > .008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116;
@@ -123,7 +125,8 @@ const deltaE = (a, b) => { const A = toLab(hslToRgb(...a)), B = toLab(hslToRgb(.
 /* Score: 100 * e^(-(ΔE/35)²) – glockenförmig: kleine Abweichungen kaum bestraft, grobe deutlich.
    ΔE 5 ≈ 98, ΔE 10 ≈ 92, ΔE 20 ≈ 72, ΔE 30 ≈ 48, ΔE 45 ≈ 19, ΔE 60 ≈ 5 */
 const scoreFromDelta = d => Math.round(100 * Math.exp(-Math.pow(d / 35, 2)));
-const inkOn = L => L > 58 ? '#1a1612' : '#f3eee4';
+/* Schriftfarbe mit bestem Kontrast, nach echter Leuchtdichte der Farbe (hsl-Array) */
+const inkOn = c => { const [r, g, b] = hslToRgb(...c).map(lin); return (.2126 * r + .7152 * g + .0722 * b) > .18 ? '#14110d' : '#f7f2e8'; };
 
 /* ============ SPIEL-REGISTRY ============
    NEUES SPIEL HINZUFÜGEN:
@@ -140,21 +143,29 @@ GAMES.push((() => {
   const ID = 'color-picker'; let timers = [], raf = 0, cleanups = [];
   const clear = () => { timers.forEach(clearInterval); timers.forEach(clearTimeout); timers = []; cancelAnimationFrame(raf); cleanups.forEach(f => f()); cleanups = []; };
 
+  /* Vertikaler Slider (unten = 0). Der Griff bleibt komplett innerhalb der Schiene. */
   function slider(label, aria, max, onInput) {
     const sl = h('div', 'sl'), tr = h('div', 'track'), th = h('div', 'thumb'), lb = h('label', null, label);
     tr.append(th); sl.append(tr, lb);
     tr.tabIndex = 0; tr.setAttribute('role', 'slider'); tr.setAttribute('aria-label', aria); tr.setAttribute('aria-orientation', 'vertical');
     tr.setAttribute('aria-valuemin', 0); tr.setAttribute('aria-valuemax', max);
     let v = 0;
-    const set = (x, fire) => { v = Math.max(0, Math.min(max, x)); th.style.bottom = (v / max * 100) + '%'; tr.setAttribute('aria-valuenow', Math.round(v)); if (fire) onInput(v); };
-    const fromY = e => { const r = tr.getBoundingClientRect(); set((1 - (e.clientY - r.top) / r.height) * max, true); };
+    const set = (x, fire) => {
+      v = Math.max(0, Math.min(max, x));
+      th.style.bottom = `calc((100% - ${th.offsetHeight || 44}px) * ${v / max})`;
+      tr.setAttribute('aria-valuenow', Math.round(v)); if (fire) onInput(v);
+    };
+    const fromY = e => {
+      const r = tr.getBoundingClientRect(), T = th.offsetHeight || 44;
+      set(Math.max(0, Math.min(1, (r.bottom - e.clientY - T / 2) / (r.height - T))) * max, true);
+    };
     tr.addEventListener('pointerdown', e => { tr.setPointerCapture(e.pointerId); fromY(e); });
     tr.addEventListener('pointermove', e => { if (tr.hasPointerCapture(e.pointerId)) fromY(e); });
     tr.addEventListener('keydown', e => {
       const st = max / 100 * (e.shiftKey ? 10 : 1), d = { ArrowUp: st, ArrowRight: st, ArrowDown: -st, ArrowLeft: -st }[e.key];
       if (d) { e.preventDefault(); set(v + d, true); }
     });
-    return { el: sl, track: tr, set, get: () => v };
+    return { el: sl, track: tr, thumb: th, set, get: () => v };
   }
 
   return {
@@ -173,7 +184,7 @@ GAMES.push((() => {
         /* faire Zufallsfarbe: kräftig, mittlere Helligkeit */
         const target = [rnd(0, 359), rnd(45, 90), rnd(30, 68)];
         const field = h('div', 'field'), layer = h('div', 'layer'), corner = h('div', 'corner num', '5');
-        layer.style.background = hsl(...target); corner.style.color = inkOn(target[2]);
+        layer.style.background = hsl(...target); corner.style.color = inkOn(target);
         field.append(layer, corner); stage.append(field);
 
         const end = Date.now() + 5000; let shown = 5;
@@ -193,13 +204,14 @@ GAMES.push((() => {
             sH.track.style.background = 'linear-gradient(to top,' + [0, 60, 120, 180, 240, 300, 360].map(x => hsl(x, 100, 50)).join(',') + ')';
             sS.track.style.background = `linear-gradient(to top,${hsl(cur[0], 0, cur[2])},${hsl(cur[0], 100, cur[2])})`;
             sL.track.style.background = `linear-gradient(to top,#000,${hsl(cur[0], cur[1], 50)},#fff)`;
+            [sH, sS, sL].forEach(s => s.thumb.style.background = hsl(...cur)); /* Griff zeigt die aktuelle Farbe */
           };
           const sH = slider('H', 'Farbton', 360, v => { cur[0] = Math.round(v); paint(); });
           const sS = slider('S', 'Sättigung', 100, v => { cur[1] = Math.round(v); paint(); });
           const sL = slider('L', 'Helligkeit', 100, v => { cur[2] = Math.round(v); paint(); });
-          sH.set(cur[0]); sS.set(cur[1]); sL.set(cur[2]); paint();
           const sw = h('div', 'sliders'); sw.append(sH.el, sS.el, sL.el);
           stage.append(sw, f);
+          sH.set(cur[0]); sS.set(cur[1]); sL.set(cur[2]); paint(); /* nach dem Einfügen, damit die Größen bekannt sind */
           go.onclick = () => result(cur.slice());
         }
 
@@ -207,9 +219,9 @@ GAMES.push((() => {
           stage.replaceChildren();
           const final = scoreFromDelta(deltaE(target, mine));
           const f = h('div', 'field compare'), a = h('div', 'layer'), m = h('div', 'layer mine'), sc = h('div', 'corner num', '0');
-          a.style.background = hsl(...target); m.style.background = hsl(...mine); sc.style.color = inkOn(mine[2]);
-          const t1 = h('div', 'tag', 'Original'), t2 = h('div', 'tag', 'Deine Farbe');
-          t1.style.left = '16px'; t1.style.color = inkOn(target[2]); t2.style.left = 'calc(50% + 16px)'; t2.style.color = inkOn(mine[2]);
+          a.style.background = hsl(...target); m.style.background = hsl(...mine); sc.style.color = inkOn(mine);
+          const t1 = h('div', 'tag chip', 'Original'), t2 = h('div', 'tag chip', 'Deine Farbe');
+          t1.style.left = 'var(--pad)'; t2.style.left = 'calc(50% + var(--pad))';
           const act = h('div', 'actions'); f.append(a, m, t1, t2, sc, act); stage.append(f);
           requestAnimationFrame(() => requestAnimationFrame(() => f.classList.add('go')));
           const t0 = performance.now(), D = 3000;
@@ -221,7 +233,7 @@ GAMES.push((() => {
           raf = requestAnimationFrame(step);
           function finish() {
             const isNew = final > 0 && final > Score.getBest(ID); Score.submitScore(ID, final); refreshBest();
-            if (isNew) act.append(h('span', 'note', 'Neuer Bestwert'));
+            if (isNew) act.append(h('span', 'note chip', 'Neuer Bestwert'));
             const again = h('button', 'btn', 'Nochmal'); again.onclick = round; act.append(again); again.focus({ preventScroll: true });
           }
         }
