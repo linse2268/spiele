@@ -11,7 +11,7 @@
 <style>
 /* ============ STYLES ============ */
 :root{
-  --bg:#161310; --bg2:#25201b; --line:#4d453b; --ink:#f7f2e8; --dim:#b8ae9d; --accent:#f2b94b;
+  --bg:#161310; --bg2:#25201b; --line:#4d453b; --ink:#f7f2e8; --dim:#b8ae9d; --accent:#f2b94b; --bad:#e5604d;
   --r:28px; --gap:16px; --pad:clamp(16px,3vw,28px);
   --display:'Instrument Serif',Georgia,'Times New Roman',serif;
   --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
@@ -75,9 +75,32 @@ body{height:100%;color:var(--ink);font:400 16px/1.5 var(--mono);-webkit-font-smo
 .compare .mine{clip-path:inset(0 0 0 100%);transition:clip-path .9s var(--ease) .15s}
 .compare.go .mine{clip-path:inset(0 0 0 50%)}
 
+/* Blockfolge */
+.seq{align-items:stretch}
+.side{display:flex;flex-direction:column;justify-content:center;gap:var(--gap);width:clamp(180px,24vw,280px);flex:none}
+.side .big{font-size:clamp(64px,12vw,140px);color:var(--accent)}
+.side .lbl{color:var(--dim);font-size:14px;margin-top:-8px}
+.side .status{margin:0;font-size:16px;min-height:48px}
+.side .actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center;min-height:52px}
+.side .actions .note{color:var(--accent);background:var(--bg2)}
+.board-wrap{flex:1;min-width:0;min-height:0;container-type:size;display:grid;place-items:center}
+.board{width:min(100cqw,100cqh);height:min(100cqw,100cqh);display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:repeat(5,1fr);gap:clamp(8px,1.6cqmin,16px)}
+.cell{border:2px solid var(--line);background:var(--bg2);border-radius:clamp(12px,3cqmin,24px);padding:0;min-width:0;min-height:0;cursor:pointer;transition:background .12s,border-color .12s,transform .12s;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.board.locked .cell{cursor:default}
+.board:not(.locked) .cell:hover{border-color:var(--dim)}
+.cell.lit{background:var(--accent);border-color:var(--accent);transform:scale(.94)}
+.cell.wrong{background:var(--bad);border-color:var(--bad)}
+.cell.hint{border-color:var(--ink)}
+
 @media (max-height:480px){
   .bar{padding-top:8px;padding-bottom:8px}.bar h2{font-size:24px}.btn{min-height:44px}
   .sl{gap:6px}.sl label{height:16px}.sl .thumb{width:40px;height:40px}.home{padding:20px}.home h1{font-size:48px}
+  .side .big{font-size:56px}.side{gap:8px}
+}
+@media (orientation:portrait){
+  .seq{flex-direction:column}
+  .side{width:auto;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between}
+  .side .big{font-size:56px}.side .lbl{display:none}.side .status{flex:1;min-height:0}
 }
 @media (max-width:560px) and (orientation:portrait){.card{grid-template-columns:1fr}.card .meta{text-align:left}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -128,6 +151,15 @@ const scoreFromDelta = d => Math.round(100 * Math.exp(-Math.pow(d / 35, 2)));
 /* Schriftfarbe mit bestem Kontrast, nach echter Leuchtdichte der Farbe (hsl-Array) */
 const inkOn = c => { const [r, g, b] = hslToRgb(...c).map(lin); return (.2126 * r + .7152 * g + .0722 * b) > .18 ? '#14110d' : '#f7f2e8'; };
 
+/* Gemeinsame Kopfzeile für Spiele: Zurück, Titel, Bestwert. Gibt { bar, refreshBest } zurück. */
+function gameBar(title, id, api) {
+  const bar = h('div', 'bar'), back = h('button', 'btn ghost', 'Zurück'), best = h('div', 'best');
+  back.onclick = api.back; best.append(h('span', null, 'Bestwert'));
+  const bestNum = h('span', 'num', String(Score.getBest(id))); best.append(bestNum);
+  bar.append(back, h('h2', null, title), best);
+  return { bar, refreshBest: () => bestNum.textContent = String(Score.getBest(id)) };
+}
+
 /* ============ SPIEL-REGISTRY ============
    NEUES SPIEL HINZUFÜGEN:
    Hänge unten im Array EIN Objekt an:
@@ -172,12 +204,8 @@ GAMES.push((() => {
     id: ID, title: 'Color Picker', players: 1,
     description: 'Merke dir eine Farbe und mische sie danach aus dem Gedächtnis nach.',
     init(c, api) {
-      const bar = h('div', 'bar'), back = h('button', 'btn ghost', 'Zurück'), title = h('h2', null, 'Color Picker'), best = h('div', 'best');
-      back.onclick = api.back; best.append(h('span', null, 'Bestwert'));
-      const bestNum = h('span', 'num', String(Score.getBest(ID))); best.append(bestNum);
-      bar.append(back, title, best);
+      const { bar, refreshBest } = gameBar('Color Picker', ID, api);
       const stage = h('div', 'stage'); c.append(bar, stage);
-      const refreshBest = () => bestNum.textContent = String(Score.getBest(ID));
 
       function round() {
         clear(); stage.replaceChildren();
@@ -239,6 +267,85 @@ GAMES.push((() => {
         }
       }
       round();
+    },
+    destroy() { clear(); }
+  };
+})());
+
+/* ---------- Spiel 2: Blockfolge ----------
+   5x5-Raster. Eine Folge leuchtet auf, der Spieler tippt sie nach.
+   Richtig = ein Block kommt dazu. Falsch = Ende. Score = Länge der zuletzt geschafften Folge. */
+GAMES.push((() => {
+  const ID = 'block-sequence', START = 3; let timers = [];
+  const later = (fn, ms) => { timers.push(setTimeout(fn, ms)); };
+  const clear = () => { timers.forEach(clearTimeout); timers = []; };
+
+  return {
+    id: ID, title: 'Blockfolge', players: 1,
+    description: 'Merke dir die aufleuchtenden Blöcke und tippe sie in derselben Reihenfolge nach. Jede Runde kommt einer dazu.',
+    init(c, api) {
+      const { bar, refreshBest } = gameBar('Blockfolge', ID, api);
+      const stage = h('div', 'stage seq'); c.append(bar, stage);
+
+      /* Seitenleiste: Zahl, Status, Aktionen */
+      const side = h('div', 'side'), big = h('div', 'big num', '0'), lbl = h('div', 'lbl', 'Geschafft');
+      const status = h('p', 'status'), actions = h('div', 'actions');
+      side.append(big, lbl, status, actions);
+
+      /* Raster */
+      const wrap = h('div', 'board-wrap'), board = h('div', 'board locked'), cells = [];
+      for (let i = 0; i < 25; i++) {
+        const b = h('button', 'cell'); b.type = 'button'; b.dataset.i = i; b.setAttribute('aria-label', 'Block ' + (i + 1));
+        cells.push(b); board.append(b);
+      }
+      wrap.append(board); stage.append(side, wrap);
+
+      let seq = [], pos = 0, locked = true, done = 0;
+      const lock = v => { locked = v; board.classList.toggle('locked', v); };
+      const flash = (n, cls, ms) => { cells[n].classList.add(cls); later(() => cells[n].classList.remove(cls), ms); };
+      const addBlock = () => { let n; do { n = rnd(0, 24); } while (seq.length && n === seq[seq.length - 1]); seq.push(n); };
+
+      function start() {
+        clear(); actions.replaceChildren(); cells.forEach(x => x.className = 'cell');
+        seq = []; done = 0; big.textContent = '0';
+        for (let i = 0; i < START; i++) addBlock();
+        show();
+      }
+
+      /* Folge abspielen; wird mit der Länge etwas schneller */
+      function show() {
+        lock(true); pos = 0; status.textContent = 'Merke dir die Reihenfolge';
+        const on = Math.max(260, 560 - seq.length * 14), gap = Math.max(120, 220 - seq.length * 4);
+        let t = 700;
+        seq.forEach(n => { later(() => flash(n, 'lit', on), t); t += on + gap; });
+        later(() => { lock(false); status.textContent = 'Du bist dran'; }, t);
+      }
+
+      function tap(i) {
+        if (locked) return;
+        if (i !== seq[pos]) return gameOver(i);
+        flash(i, 'lit', 180); pos++;
+        if (pos === seq.length) {
+          lock(true); done = seq.length; big.textContent = String(done); status.textContent = 'Richtig';
+          later(() => { addBlock(); show(); }, 800);
+        }
+      }
+
+      function gameOver(wrong) {
+        lock(true); status.textContent = 'Daneben';
+        cells[wrong].classList.add('wrong');
+        later(() => cells[seq[pos]].classList.add('hint'), 350); /* zeigt, wo es weitergegangen wäre */
+        const isNew = done > 0 && done > Score.getBest(ID); Score.submitScore(ID, done); refreshBest();
+        actions.replaceChildren();
+        if (isNew) actions.append(h('span', 'note chip', 'Neuer Bestwert'));
+        const again = h('button', 'btn primary', 'Nochmal'); again.onclick = start; actions.append(again);
+        again.focus({ preventScroll: true });
+      }
+
+      /* Touch/Maus sofort beim Antippen, Tastatur (Enter/Leertaste) über click */
+      board.addEventListener('pointerdown', e => { const b = e.target.closest('.cell'); if (b) tap(+b.dataset.i); });
+      board.addEventListener('click', e => { const b = e.target.closest('.cell'); if (b && e.detail === 0) tap(+b.dataset.i); });
+      start();
     },
     destroy() { clear(); }
   };
