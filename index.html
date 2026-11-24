@@ -78,11 +78,11 @@ body{height:100%;color:var(--ink);font:400 16px/1.5 var(--mono);-webkit-font-smo
 .compare.go .mine{clip-path:inset(0 0 0 50%)}
 
 /* Blockfolge: Levelauswahl */
-.levels{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,1fr);gap:var(--gap);align-content:center;overflow:auto}
-.lvl{display:flex;flex-direction:column;gap:8px;text-align:left;padding:clamp(20px,3vw,36px);border:2px solid var(--line);border-radius:var(--r);background:var(--bg2);color:var(--ink);font:inherit;cursor:pointer;transition:border-color .25s,transform .25s var(--ease);touch-action:manipulation}
+.levels{flex:1;min-height:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:var(--gap);align-content:center;overflow:auto}
+.lvl{display:flex;flex-direction:column;gap:8px;text-align:left;padding:clamp(16px,2vw,28px);border:2px solid var(--line);border-radius:var(--r);background:var(--bg2);color:var(--ink);font:inherit;cursor:pointer;transition:border-color .25s,transform .25s var(--ease);touch-action:manipulation}
 .lvl:hover,.lvl:focus-visible{border-color:var(--accent);transform:translateY(-3px)}
-.lvl .size{font-size:clamp(44px,7vw,80px);color:var(--accent)}
-.lvl .name{font:400 clamp(32px,4vw,44px)/1 var(--display);margin-top:8px}
+.lvl .size{font-size:clamp(34px,5vw,64px);color:var(--accent)}
+.lvl .name{font:400 clamp(26px,3vw,38px)/1 var(--display);margin-top:8px}
 .lvl .rec{color:var(--dim);font-size:14px;margin-top:8px}
 .lvl .rec .num{color:var(--ink);margin-left:8px;font-size:18px}
 
@@ -109,13 +109,13 @@ body{height:100%;color:var(--ink);font:400 16px/1.5 var(--mono);-webkit-font-smo
   .bar{padding-top:8px;padding-bottom:8px}.bar h2{font-size:24px}.btn{min-height:44px}
   .sl{gap:6px}.sl label{height:16px}.sl .thumb{width:40px;height:40px}.home{padding:20px}.home h1{font-size:48px}
   .side .big{font-size:56px}.side{gap:8px}
-  .lvl{padding:16px}.lvl .size{font-size:40px}.lvl .name{font-size:28px;margin-top:0}
+  .lvl{padding:12px}.lvl .size{font-size:32px}.lvl .name{font-size:24px;margin-top:0}
 }
 @media (orientation:portrait){
   .seq{flex-direction:column}
   .side{width:auto;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between}
   .side .big{font-size:56px}.side .lbl{display:none}.side .status{flex:1;min-height:0}
-  .levels{grid-template-columns:1fr}
+  .levels{grid-template-columns:repeat(2,1fr);align-content:start}
 }
 @media (max-width:560px) and (orientation:portrait){.card{grid-template-columns:1fr}.card .meta{text-align:left}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -159,10 +159,29 @@ function toLab([r, g, b]) {
   const f = t => t > .008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116;
   return [116 * f(Y) - 16, 500 * (f(X) - f(Y)), 200 * (f(Y) - f(Z))];
 }
-const deltaE = (a, b) => { const A = toLab(hslToRgb(...a)), B = toLab(hslToRgb(...b)); return Math.hypot(A[0] - B[0], A[1] - B[1], A[2] - B[2]); };
-/* Score: 100 * e^(-(ΔE/35)²) – glockenförmig: kleine Abweichungen kaum bestraft, grobe deutlich.
-   ΔE 5 ≈ 98, ΔE 10 ≈ 92, ΔE 20 ≈ 72, ΔE 30 ≈ 48, ΔE 45 ≈ 19, ΔE 60 ≈ 5 */
-const scoreFromDelta = d => Math.round(100 * Math.exp(-Math.pow(d / 35, 2)));
+/* CIEDE2000 (CIELAB-Farbabstand, wahrnehmungsgleichmäßig): gewichtet Helligkeit, Buntheit und Farbton
+   so, wie das Auge sie unterscheidet. ΔE00 ≈ 1 ist kaum sichtbar, ≈ 2 bei genauem Hinsehen, ≈ 5 klar sichtbar. */
+function ciede2000([L1, a1, b1], [L2, a2, b2]) {
+  const rad = Math.PI / 180, deg = 180 / Math.PI, p7 = Math.pow(25, 7);
+  const C1 = Math.hypot(a1, b1), C2 = Math.hypot(a2, b2), Cb7 = Math.pow((C1 + C2) / 2, 7);
+  const G = .5 * (1 - Math.sqrt(Cb7 / (Cb7 + p7)));
+  const a1p = (1 + G) * a1, a2p = (1 + G) * a2, C1p = Math.hypot(a1p, b1), C2p = Math.hypot(a2p, b2);
+  const h1p = C1p === 0 ? 0 : (Math.atan2(b1, a1p) * deg + 360) % 360, h2p = C2p === 0 ? 0 : (Math.atan2(b2, a2p) * deg + 360) % 360;
+  const dL = L2 - L1, dC = C2p - C1p; let dh = 0;
+  if (C1p * C2p !== 0) { dh = h2p - h1p; if (dh > 180) dh -= 360; else if (dh < -180) dh += 360; }
+  const dH = 2 * Math.sqrt(C1p * C2p) * Math.sin(dh * rad / 2);
+  const Lb = (L1 + L2) / 2, Cb = (C1p + C2p) / 2; let hb = h1p + h2p;
+  if (C1p * C2p !== 0) { if (Math.abs(h1p - h2p) > 180) hb += hb < 360 ? 360 : -360; hb /= 2; }
+  const T = 1 - .17 * Math.cos((hb - 30) * rad) + .24 * Math.cos(2 * hb * rad) + .32 * Math.cos((3 * hb + 6) * rad) - .2 * Math.cos((4 * hb - 63) * rad);
+  const dTh = 30 * Math.exp(-Math.pow((hb - 275) / 25, 2)), Rc = 2 * Math.sqrt(Math.pow(Cb, 7) / (Math.pow(Cb, 7) + p7));
+  const Sl = 1 + .015 * Math.pow(Lb - 50, 2) / Math.sqrt(20 + Math.pow(Lb - 50, 2)), Sc = 1 + .045 * Cb, Sh = 1 + .015 * Cb * T;
+  const Rt = -Math.sin(2 * dTh * rad) * Rc, x = dL / Sl, y = dC / Sc, z = dH / Sh;
+  return Math.sqrt(x * x + y * y + z * z + Rt * y * z);
+}
+const deltaE = (a, b) => ciede2000(toLab(hslToRgb(...a)), toLab(hslToRgb(...b)));
+/* Score: 100 * e^(-(ΔE00/16)^1.75). Kaum sichtbare Abweichungen bleiben bei fast 100, grobe fallen deutlich.
+   ΔE00 1 ≈ 99, 2 ≈ 97, 5 ≈ 88, 10 ≈ 65, 20 ≈ 24, 30 ≈ 5 */
+const scoreFromDelta = d => Math.round(100 * Math.exp(-Math.pow(d / 16, 1.75)));
 /* Schriftfarbe mit bestem Kontrast, nach echter Leuchtdichte der Farbe (hsl-Array) */
 const inkOn = c => { const [r, g, b] = hslToRgb(...c).map(lin); return (.2126 * r + .7152 * g + .0722 * b) > .18 ? '#14110d' : '#f7f2e8'; };
 
@@ -184,7 +203,8 @@ function gameBar(title, idOrGetter, api) {
    { id:'mein-spiel', title:'…', description:'…', players:1,   // 2 = Zwei-Spieler-Spiel
      init(container, api){ … },   // baut das Spiel in container auf
      destroy(){ … },              // optional: Timer/Listener aufräumen
-     getBest(){ … } }             // optional: eigener Bestwert für die Karte (z. B. bei mehreren Levels)
+     getBest(){ … },              // optional: eigener Bestwert für die Karte (z. B. bei mehreren Levels)
+     bestLabel:'…' }              // optional: Beschriftung des Bestwerts auf der Karte
    api = { Score, h, back() }. Nutze Score.getBest(id) und Score.submitScore(id, punkte).
    Karte, Route (#mein-spiel) und Highscore erscheinen automatisch. */
 const GAMES = [];
@@ -292,14 +312,14 @@ GAMES.push((() => {
 })());
 
 /* ---------- Spiel 2: Blockfolge ----------
-   Levelauswahl (4x4 / 5x5 / 6x6), danach leuchtet eine Folge auf und der Spieler tippt sie nach.
+   Levelauswahl (2x2 bis 6x6), danach leuchtet eine Folge auf und der Spieler tippt sie nach.
    Richtig = ein Block kommt dazu. Falsch = Ende. Score = Länge der zuletzt geschafften Folge.
    Jedes Level hat einen eigenen Bestwert (Score-ID "block-sequence-4" usw.). */
 GAMES.push((() => {
   const ID = 'block-sequence', START = 3;
-  const LEVELS = [{ n: 4, name: 'Leicht' }, { n: 5, name: 'Mittel' }, { n: 6, name: 'Schwer' }];
+  const LEVELS = [{ n: 2, name: 'Mini' }, { n: 3, name: 'Sehr leicht' }, { n: 4, name: 'Leicht' }, { n: 5, name: 'Mittel' }, { n: 6, name: 'Schwer' }];
+  const MAIN = 4; /* dieses Level liefert den Bestwert für die Startseite */
   const sid = n => ID + '-' + n;
-  const bestAll = () => Math.max(...LEVELS.map(l => Score.getBest(sid(l.n))));
   let timers = [];
   const later = (fn, ms) => { timers.push(setTimeout(fn, ms)); };
   const clear = () => { timers.forEach(clearTimeout); timers = []; };
@@ -307,10 +327,10 @@ GAMES.push((() => {
   return {
     id: ID, title: 'Blockfolge', players: 1,
     description: 'Merke dir die aufleuchtenden Blöcke und tippe sie in derselben Reihenfolge nach. Jede Runde kommt einer dazu.',
-    getBest: bestAll, /* Karte zeigt den höchsten Wert aller Level */
+    getBest: () => Score.getBest(sid(MAIN)), bestLabel: 'Bestwert 4×4', /* Startseite zeigt den Bestwert für 4×4 */
     init(c, api) {
       let level = null;
-      const { bar, refreshBest } = gameBar('Blockfolge', () => level ? Score.getBest(sid(level.n)) : bestAll(), api);
+      const { bar, refreshBest } = gameBar('Blockfolge', () => Score.getBest(sid(level ? level.n : MAIN)), api);
       const stage = h('div', 'stage'); c.append(bar, stage);
 
       /* ----- Levelauswahl ----- */
@@ -414,7 +434,7 @@ function home() {
   GAMES.forEach(game => {
     const a = h('a', 'card'); a.href = '#' + game.id;
     const l = h('div'); l.append(h('h2', null, game.title), h('p', null, game.description));
-    const m = h('div', 'meta', 'Bestwert'); m.append(h('span', 'num', String(game.getBest ? game.getBest() : Score.getBest(game.id))));
+    const m = h('div', 'meta', game.bestLabel || 'Bestwert'); m.append(h('span', 'num', String(game.getBest ? game.getBest() : Score.getBest(game.id))));
     a.append(l, m); g.append(a);
   });
   v.append(g); return v;
