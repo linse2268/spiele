@@ -64,7 +64,7 @@ body{height:100%;color:var(--ink);font:400 16px/1.5 var(--mono);-webkit-font-smo
 .sliders{display:flex;gap:12px;flex:none}
 .sl{display:flex;flex-direction:column;align-items:center;gap:12px;width:clamp(56px,7vw,76px)}
 .sl .track{position:relative;flex:1;width:100%;min-height:0;border-radius:999px;box-shadow:0 0 0 2px var(--line);touch-action:none;cursor:ns-resize;user-select:none;-webkit-user-select:none}
-.sl .thumb{position:absolute;left:50%;width:44px;height:44px;transform:translateX(-50%);border-radius:50%;border:4px solid var(--ink);box-shadow:0 0 0 2px var(--bg);pointer-events:none}
+.sl .thumb{position:absolute;left:50%;width:44px;height:44px;transform:translateX(-50%);border-radius:50%;border:4px solid var(--ink);background:var(--ink);box-shadow:0 0 0 2px var(--bg);pointer-events:none}
 .sl label{color:var(--ink);font-size:14px;font-weight:500;height:20px}
 .field{position:relative;flex:1;min-width:0;border-radius:var(--r);overflow:hidden;background:var(--bg2)}
 .field .layer{position:absolute;inset:0}
@@ -118,6 +118,101 @@ body{height:100%;color:var(--ink);font:400 16px/1.5 var(--mono);-webkit-font-smo
   .levels{grid-template-columns:repeat(2,1fr);align-content:start}
 }
 @media (max-width:560px) and (orientation:portrait){.card{grid-template-columns:1fr}.card .meta{text-align:left}}
+/* Reaktionstest */
+.react .pad{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;background:var(--bg2);transition:background .15s}
+.react .pad:focus{outline:none}
+.react .pad:focus-visible{outline:3px solid var(--accent);outline-offset:-6px}
+.react.go .pad{background:var(--accent)}
+.react.early .pad{background:var(--bad)}
+.react.go .msg,.react.go .corner,.react.early .msg,.react.early .corner{color:#1a1308}
+.msg{position:absolute;inset:0;display:grid;place-content:center;gap:12px;text-align:center;padding:var(--pad);pointer-events:none}
+.msg .main{font:400 clamp(40px,8vw,96px)/1 var(--display)}
+.msg .main.num{font-size:clamp(64px,14vw,160px)}
+.msg .sub{font-size:15px;opacity:.85}
+.react .corner,.react .tag{pointer-events:none}
+.react .tag{left:var(--pad)}
+.react .actions{z-index:2}
+@media (max-height:480px){.msg .main{font-size:44px}.msg .main.num{font-size:72px}.msg{gap:4px}}
+/* Schätzspiel */
+.est .fig{display:grid;place-items:center;padding:clamp(72px,12vw,120px) var(--pad)}
+.est svg{width:100%;height:100%;overflow:visible}
+.est .ray,.est .ln{stroke:var(--ink);stroke-width:1.5;stroke-linecap:round;fill:none}
+.est .ln.ref{stroke:var(--accent)}
+.est .dot{fill:var(--ink)}
+.est .pie-bg{fill:var(--bg)}
+.est .pie{fill:var(--accent)}
+.est .rim{fill:none;stroke:var(--line);stroke-width:.8}
+.est .svgtxt{fill:var(--dim);font:500 5px var(--mono)}
+.est .tag{position:absolute;max-width:58%;white-space:normal;line-height:1.3;border-radius:20px}
+.est .tag.top{top:var(--pad);bottom:auto;left:var(--pad)}
+.est .tags{position:absolute;left:var(--pad);bottom:var(--pad);display:flex;flex-wrap:wrap;gap:8px;max-width:calc(100% - 190px)}
+.est .chip.key{color:var(--accent)}
+@media (max-height:480px){.est .fig{padding:56px var(--pad) 64px}.est .tag.top{max-width:50%}}
+/* Stroop-Test */
+.stroop .layer{transition:box-shadow .15s}
+.stroop.ok .layer{box-shadow:inset 0 0 0 5px var(--accent)}
+.stroop.bad .layer{box-shadow:inset 0 0 0 5px var(--bad)}
+.stroop .stim{position:absolute;inset:0 0 calc(var(--pad) + 96px) 0;display:grid;place-items:center;font:400 clamp(72px,16vw,200px)/1 var(--display);pointer-events:none}
+.stroop .opts{position:absolute;left:var(--pad);right:var(--pad);bottom:var(--pad);display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.stroop .opts .btn{min-height:76px;padding:0 6px;font-size:16px}
+.stroop .tag{top:var(--pad);left:var(--pad);bottom:auto}
+.stroop.idle .stim,.stroop.idle .opts,.stroop.idle .tag,.stroop.idle .corner,
+.stroop.done .stim,.stroop.done .opts{display:none}
+.stroop.play .msg,.stroop.play .actions{display:none}
+@media (max-height:480px){
+  .stroop .stim{inset:0 0 calc(var(--pad) + 68px) 0;font-size:80px}
+  .stroop .opts .btn{min-height:56px}
+}
+/* Mastermind */
+.mm{--u:clamp(26px,calc((100dvh - 150px) / 10),44px);align-items:center;justify-content:center;gap:clamp(16px,4vw,56px)}
+.mboard{display:flex;flex-direction:column;gap:4px;flex:none}
+.mrow{height:var(--u);display:flex;align-items:center;gap:calc(var(--u) * .3);padding:0 calc(var(--u) * .35);border-radius:999px;background:var(--bg2);box-shadow:0 0 0 2px transparent;transition:box-shadow .2s}
+.mrow.cur{box-shadow:0 0 0 2px var(--accent)}
+.mpegs{display:flex;gap:calc(var(--u) * .14)}
+.mp{width:calc(var(--u) * .62);height:calc(var(--u) * .62);border-radius:50%;background:var(--bg);box-shadow:inset 0 0 0 2px var(--line)}
+.mp.f{box-shadow:none}
+.mpins{display:grid;grid-template-columns:repeat(2,calc(var(--u) * .22));gap:calc(var(--u) * .08)}
+.mpin{width:calc(var(--u) * .22);height:calc(var(--u) * .22);border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--line)}
+.mpin.x{background:var(--ink);box-shadow:none}
+.mpin.c{box-shadow:inset 0 0 0 2px var(--ink)}
+.mside{display:flex;flex-direction:column;justify-content:center;gap:12px;width:clamp(250px,36vw,380px);flex:none}
+.mstatus{margin:0;font-size:15px;min-height:46px}
+.slots{display:flex;gap:12px}
+.slot{width:56px;height:56px;padding:0;border-radius:50%;background:var(--bg2);border:2px dashed var(--line);cursor:pointer;touch-action:manipulation;transition:border-color .2s}
+.slot.f{border:2px solid var(--ink)}
+.slot:hover{border-color:var(--ink)}
+.palette{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;justify-items:center}
+.sw{width:100%;max-width:58px;aspect-ratio:1;min-height:46px;padding:0;border-radius:50%;border:0;cursor:pointer;touch-action:manipulation;box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--line);transition:box-shadow .2s,transform .15s}
+.sw:hover,.sw:focus-visible{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--ink)}
+.sw:active{transform:scale(.92)}
+.macts{display:flex;gap:12px;flex-wrap:wrap;align-items:center;min-height:52px}
+.macts .btn:disabled{opacity:.4;cursor:default;pointer-events:none}
+.macts .note{color:var(--accent);background:var(--bg2)}
+.legend{margin:0;color:var(--dim);font-size:13px}
+.mside.over .palette,.mside.over .legend{display:none}
+.mside.over .slot{pointer-events:none;border-style:solid;border-color:var(--ink)}
+@media (orientation:portrait){
+  .mm{--u:clamp(22px,calc((100dvh - 430px) / 10),40px);flex-direction:column;gap:12px}
+  .mside{width:100%;gap:10px}
+  .mstatus{min-height:0}
+  .palette{grid-template-columns:repeat(6,1fr);gap:8px}
+}
+@media (max-height:480px){
+  .mside{width:clamp(240px,40vw,340px);gap:8px}
+  .slot{width:48px;height:48px}
+  .palette{gap:8px}
+  .sw{max-width:46px}
+  .mstatus{font-size:14px;min-height:0}
+  .macts{min-height:44px}
+  .legend{font-size:12px}
+}
+/* Kopfzeile: Zurück-Button schrumpft nie, lange Titel kürzen sich statt zu überlaufen */
+.bar .btn{flex:none}
+.bar h2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:560px){
+  .bar{gap:10px}.bar h2{font-size:24px}.bar .btn.ghost{padding:0 14px}
+  .bar .best{font-size:12px;gap:8px}.bar .best .num{font-size:22px}
+}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -197,6 +292,32 @@ function gameBar(title, idOrGetter, api) {
   return { bar, refreshBest: () => bestNum.textContent = String(read()) };
 }
 
+/* Gemeinsamer Baustein: vertikaler Slider (unten = 0), per Touch, Maus und Tastatur bedienbar.
+   Der Griff bleibt komplett innerhalb der Schiene. Gibt { el, track, thumb, set(wert, feuern?), get() } zurück. */
+function slider(label, aria, max, onInput) {
+  const sl = h('div', 'sl'), tr = h('div', 'track'), th = h('div', 'thumb'), lb = h('label', null, label);
+  tr.append(th); sl.append(tr, lb);
+  tr.tabIndex = 0; tr.setAttribute('role', 'slider'); tr.setAttribute('aria-label', aria); tr.setAttribute('aria-orientation', 'vertical');
+  tr.setAttribute('aria-valuemin', 0); tr.setAttribute('aria-valuemax', max);
+  let v = 0;
+  const set = (x, fire) => {
+    v = Math.max(0, Math.min(max, x));
+    th.style.bottom = `calc((100% - ${th.offsetHeight || 44}px) * ${v / max})`;
+    tr.setAttribute('aria-valuenow', Math.round(v)); if (fire) onInput(v);
+  };
+  const fromY = e => {
+    const r = tr.getBoundingClientRect(), T = th.offsetHeight || 44;
+    set(Math.max(0, Math.min(1, (r.bottom - e.clientY - T / 2) / (r.height - T))) * max, true);
+  };
+  tr.addEventListener('pointerdown', e => { tr.setPointerCapture(e.pointerId); fromY(e); });
+  tr.addEventListener('pointermove', e => { if (tr.hasPointerCapture(e.pointerId)) fromY(e); });
+  tr.addEventListener('keydown', e => {
+    const st = max / 100 * (e.shiftKey ? 10 : 1), d = { ArrowUp: st, ArrowRight: st, ArrowDown: -st, ArrowLeft: -st }[e.key];
+    if (d) { e.preventDefault(); set(v + d, true); }
+  });
+  return { el: sl, track: tr, thumb: th, set, get: () => v };
+}
+
 /* ============ SPIEL-REGISTRY ============
    NEUES SPIEL HINZUFÜGEN:
    Hänge unten im Array EIN Objekt an:
@@ -213,31 +334,6 @@ const GAMES = [];
 GAMES.push((() => {
   const ID = 'color-picker'; let timers = [], raf = 0, cleanups = [];
   const clear = () => { timers.forEach(clearInterval); timers.forEach(clearTimeout); timers = []; cancelAnimationFrame(raf); cleanups.forEach(f => f()); cleanups = []; };
-
-  /* Vertikaler Slider (unten = 0). Der Griff bleibt komplett innerhalb der Schiene. */
-  function slider(label, aria, max, onInput) {
-    const sl = h('div', 'sl'), tr = h('div', 'track'), th = h('div', 'thumb'), lb = h('label', null, label);
-    tr.append(th); sl.append(tr, lb);
-    tr.tabIndex = 0; tr.setAttribute('role', 'slider'); tr.setAttribute('aria-label', aria); tr.setAttribute('aria-orientation', 'vertical');
-    tr.setAttribute('aria-valuemin', 0); tr.setAttribute('aria-valuemax', max);
-    let v = 0;
-    const set = (x, fire) => {
-      v = Math.max(0, Math.min(max, x));
-      th.style.bottom = `calc((100% - ${th.offsetHeight || 44}px) * ${v / max})`;
-      tr.setAttribute('aria-valuenow', Math.round(v)); if (fire) onInput(v);
-    };
-    const fromY = e => {
-      const r = tr.getBoundingClientRect(), T = th.offsetHeight || 44;
-      set(Math.max(0, Math.min(1, (r.bottom - e.clientY - T / 2) / (r.height - T))) * max, true);
-    };
-    tr.addEventListener('pointerdown', e => { tr.setPointerCapture(e.pointerId); fromY(e); });
-    tr.addEventListener('pointermove', e => { if (tr.hasPointerCapture(e.pointerId)) fromY(e); });
-    tr.addEventListener('keydown', e => {
-      const st = max / 100 * (e.shiftKey ? 10 : 1), d = { ArrowUp: st, ArrowRight: st, ArrowDown: -st, ArrowLeft: -st }[e.key];
-      if (d) { e.preventDefault(); set(v + d, true); }
-    });
-    return { el: sl, track: tr, thumb: th, set, get: () => v };
-  }
 
   return {
     id: ID, title: 'Color Picker', players: 1,
@@ -419,6 +515,362 @@ GAMES.push((() => {
       showLevels();
     },
     destroy() { clear(); }
+  };
+})());
+
+/* ---------- Spiel 3: Reaktionstest (reaction) ----------
+   5 Versuche: Warte, bis die Fläche aufleuchtet, und tippe so schnell wie möglich.
+   Punkte pro Versuch: 100 bei 150 oder schneller, 0 bei 650 oder langsamer (linear).
+   Score = Summe aller Versuche (max. 500). Zu früh getippt = Versuch zählt nicht, neuer Anlauf. */
+GAMES.push((() => {
+  const ID = 'reaction', TRIES = 5; let timers = [];
+  const later = (fn, ms) => { timers.push(setTimeout(fn, ms)); };
+  const clear = () => { timers.forEach(clearTimeout); timers = []; };
+  const pts = ms => Math.max(0, Math.min(100, Math.round((650 - ms) / 5)));
+
+  return {
+    id: ID, title: 'Reaktionstest', players: 1,
+    description: 'Warte auf das Signal und tippe so schnell du kannst. Fünf Versuche, je schneller, desto mehr Punkte.',
+    init(c, api) {
+      const { bar, refreshBest } = gameBar('Reaktionstest', ID, api);
+      const stage = h('div', 'stage'); c.append(bar, stage);
+
+      const field = h('div', 'field react idle'), pad = h('div', 'layer pad'), msg = h('div', 'msg');
+      const corner = h('div', 'corner num', '0'), chip = h('div', 'tag chip'), act = h('div', 'actions');
+      pad.tabIndex = 0; pad.setAttribute('role', 'button'); pad.setAttribute('aria-label', 'Reaktionsfläche');
+      field.append(pad, msg, corner, chip, act); stage.append(field);
+
+      let state = 'idle', n = 0, total = 0, results = [], tGo = 0, lockUntil = 0;
+
+      /* Anzeige: Zustand (steuert Farbe), Haupttext, Nebentext */
+      function show(st, main, sub, isNum) {
+        state = st; field.className = 'field react ' + st;
+        const m = h('div', 'main' + (isNum ? ' num' : ''), main);
+        msg.replaceChildren(m); if (sub) msg.append(h('div', 'sub', sub));
+        corner.textContent = String(total);
+        chip.textContent = st === 'idle' || st === 'done' ? '' : 'Versuch ' + Math.min(n + 1, TRIES);
+        chip.style.display = chip.textContent ? '' : 'none';
+      }
+      function reset() { clear(); n = 0; total = 0; results = []; act.replaceChildren(); }
+
+      function startWait() {
+        show('wait', 'Warten …', 'Tippe erst, wenn es leuchtet');
+        later(() => { tGo = performance.now(); show('go', 'Jetzt!', ''); }, rnd(1500, 4000));
+      }
+
+      function finish() {
+        const isNew = total > 0 && total > Score.getBest(ID); Score.submitScore(ID, total); refreshBest();
+        show('done', 'Fertig', results.join(' · '));
+        if (isNew) act.append(h('span', 'note chip', 'Neuer Bestwert'));
+        const again = h('button', 'btn', 'Nochmal'); again.onclick = () => { reset(); startWait(); };
+        act.append(again); again.focus({ preventScroll: true });
+      }
+
+      /* ts = Zeitstempel des Eingabeereignisses (genauer als "jetzt") */
+      function press(ts) {
+        if (ts < lockUntil || state === 'done') return;
+        if (state === 'idle') { reset(); startWait(); }
+        else if (state === 'wait') {
+          clear(); lockUntil = ts + 600;
+          show('early', 'Zu früh', 'Tippen für einen neuen Anlauf');
+        } else if (state === 'go') {
+          const ms = Math.max(0, Math.round(ts - tGo)), p = pts(ms);
+          results.push(p); total += p; n++;
+          if (n >= TRIES) return finish();
+          lockUntil = ts + 500;
+          show('shown', String(ms), 'Punkte ' + p + ' · Tippen für den nächsten Versuch', true);
+        } else startWait(); /* early, shown */
+      }
+
+      pad.addEventListener('pointerdown', e => { press(e.timeStamp); });
+      pad.addEventListener('keydown', e => {
+        if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); press(e.timeStamp); }
+      });
+      show('idle', 'Tippen zum Start', TRIES + ' Versuche');
+    },
+    destroy() { clear(); }
+  };
+})());
+
+/* ---------- Spiel 4: Schätzspiel (estimate) ----------
+   5 Runden mit zufälligen Aufgaben: Winkel, Kreisanteil oder Länge schätzen. Eingabe per vertikalem Slider.
+   Punkte pro Runde: 100 * e^(-(Fehler/Toleranz)^1.5). Toleranz: Winkel 15, Kreisanteil 12, Länge 15 (relativ zum Sollwert).
+   Score = Summe aller Runden (max. 500). */
+GAMES.push((() => {
+  const ID = 'estimate', ROUNDS = 5, NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+  const pt = (cx, cy, r, deg) => [cx + r * Math.cos(deg * Math.PI / 180), cy + r * Math.sin(deg * Math.PI / 180)];
+  const f1 = n => n.toFixed(2);
+
+  /* Aufgabentypen: liefern { prompt, max, truth, tol, rel, draw() } */
+  const TYPES = {
+    angle() {
+      const a = rnd(15, 165), rot = rnd(0, 359);
+      return { prompt: 'Winkel schätzen (0 bis 180)', max: 180, truth: a, tol: 15, rel: false, draw() {
+        const g = el('g', {}), p1 = pt(50, 30, 26, rot), p2 = pt(50, 30, 26, rot + a);
+        g.append(el('line', { class: 'ray', x1: 50, y1: 30, x2: f1(p1[0]), y2: f1(p1[1]) }),
+                 el('line', { class: 'ray', x1: 50, y1: 30, x2: f1(p2[0]), y2: f1(p2[1]) }),
+                 el('circle', { class: 'dot', cx: 50, cy: 30, r: 1.6 }));
+        return g;
+      } };
+    },
+    pie() {
+      const p = rnd(8, 92), start = rnd(0, 359);
+      return { prompt: 'Kreisanteil schätzen (0 bis 100)', max: 100, truth: p, tol: 12, rel: false, draw() {
+        const g = el('g', {}), a = p * 3.6, s = pt(50, 30, 25, start), e = pt(50, 30, 25, start + a);
+        g.append(el('circle', { class: 'pie-bg', cx: 50, cy: 30, r: 25 }),
+                 el('path', { class: 'pie', d: `M50 30 L${f1(s[0])} ${f1(s[1])} A25 25 0 ${a > 180 ? 1 : 0} 1 ${f1(e[0])} ${f1(e[1])} Z` }),
+                 el('circle', { class: 'rim', cx: 50, cy: 30, r: 25 }));
+        return g;
+      } };
+    },
+    length() {
+      const L = rnd(8, 88); /* Referenz: 40 Einheiten = 100 */
+      return { prompt: 'Länge schätzen: obere Linie = 100', max: 250, truth: Math.round(L * 2.5), tol: 15, rel: true, draw() {
+        const g = el('g', {}), t = el('text', { class: 'svgtxt', x: 30, y: 12, 'text-anchor': 'middle' });
+        t.textContent = '100';
+        g.append(t,
+          el('line', { class: 'ln ref', x1: 10, y1: 18, x2: 50, y2: 18 }), el('line', { class: 'ln ref', x1: 10, y1: 15.5, x2: 10, y2: 20.5 }), el('line', { class: 'ln ref', x1: 50, y1: 15.5, x2: 50, y2: 20.5 }),
+          el('line', { class: 'ln', x1: 10, y1: 42, x2: 10 + L, y2: 42 }), el('line', { class: 'ln', x1: 10, y1: 39.5, x2: 10, y2: 44.5 }), el('line', { class: 'ln', x1: 10 + L, y1: 39.5, x2: 10 + L, y2: 44.5 }));
+        return g;
+      } };
+    }
+  };
+
+  /* 5 Aufgaben: jeder Typ mindestens einmal, zwei weitere zufällig, dann mischen */
+  function makeTasks() {
+    const keys = Object.keys(TYPES), list = [...keys, keys[Math.floor(Math.random() * 3)], keys[Math.floor(Math.random() * 3)]];
+    for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
+    return list.map(k => TYPES[k]());
+  }
+
+  return {
+    id: ID, title: 'Schätzspiel', players: 1,
+    description: 'Schätze Winkel, Kreisanteile und Längen nach Augenmaß. Fünf Runden, je genauer, desto mehr Punkte.',
+    init(c, api) {
+      const { bar, refreshBest } = gameBar('Schätzspiel', ID, api);
+      const stage = h('div', 'stage'); c.append(bar, stage);
+      let tasks = [], round = 0, total = 0, results = [];
+
+      function newGame() { tasks = makeTasks(); round = 0; total = 0; results = []; ask(); }
+
+      function ask() {
+        stage.replaceChildren();
+        const t = tasks[round]; let guess = 0;
+        const field = h('div', 'field est'), fig = h('div', 'layer fig'), corner = h('div', 'corner num', '0');
+        const prompt = h('div', 'tag top chip', t.prompt), tags = h('div', 'tags'), act = h('div', 'actions');
+        const go = h('button', 'btn primary', 'Abschicken');
+        const svg = el('svg', { viewBox: '0 0 100 60', 'aria-hidden': 'true' }); svg.append(t.draw()); fig.append(svg);
+        tags.append(h('span', 'chip', 'Runde ' + (round + 1) + ' von ' + ROUNDS)); act.append(go);
+        field.append(fig, prompt, corner, tags, act);
+
+        /* Slider: Füllung folgt dem Griff */
+        const sl = slider('Tipp', 'Schätzwert', t.max, v => {
+          guess = Math.round(v); corner.textContent = String(guess);
+          const T = sl.thumb.offsetHeight || 44;
+          sl.track.style.background = `linear-gradient(to top,var(--accent) calc(${T / 2}px + (100% - ${T}px) * ${v / t.max}),var(--bg2) 0)`;
+        });
+        sl.thumb.style.background = 'var(--accent)';
+        const sw = h('div', 'sliders'); sw.append(sl.el);
+        stage.append(sw, field);
+        sl.set(0, true);
+
+        go.onclick = () => {
+          const err = t.rel ? Math.abs(guess - t.truth) / t.truth * 100 : Math.abs(guess - t.truth);
+          const p = Math.round(100 * Math.exp(-Math.pow(err / t.tol, 1.5)));
+          total += p; results.push(p);
+          sl.track.style.pointerEvents = 'none'; sl.track.tabIndex = -1;
+          tags.append(h('span', 'chip', 'Tipp ' + guess), h('span', 'chip key', 'Richtig ' + t.truth), h('span', 'chip', 'Punkte ' + p));
+          const next = h('button', 'btn primary', round + 1 < ROUNDS ? 'Weiter' : 'Ergebnis');
+          next.onclick = () => { round++; round < ROUNDS ? ask() : finish(); };
+          act.replaceChildren(next); next.focus({ preventScroll: true });
+        };
+      }
+
+      function finish() {
+        stage.replaceChildren();
+        const isNew = total > 0 && total > Score.getBest(ID); Score.submitScore(ID, total); refreshBest();
+        const field = h('div', 'field est'), bg = h('div', 'layer'), msg = h('div', 'msg'), corner = h('div', 'corner num', String(total)), act = h('div', 'actions');
+        msg.append(h('div', 'main', 'Fertig'), h('div', 'sub', results.join(' · ')));
+        if (isNew) act.append(h('span', 'note chip', 'Neuer Bestwert'));
+        const again = h('button', 'btn', 'Nochmal'); again.onclick = newGame; act.append(again);
+        field.append(bg, msg, corner, act); stage.append(field); again.focus({ preventScroll: true });
+      }
+
+      newGame();
+    }
+  };
+})());
+
+/* ---------- Spiel 5: Stroop-Test (stroop) ----------
+   30 Sekunden: Ein Farbwort erscheint meist in einer anderen Schriftfarbe. Tippe auf die Schriftfarbe, nicht auf das Wort.
+   Richtig = +1, falsch = -1 (nie unter 0). Score = Punktestand nach Ablauf der Zeit.
+   Bedienung: Antippen oder Tasten 1 bis 4. */
+GAMES.push((() => {
+  const ID = 'stroop', TIME = 30;
+  const COLORS = [{ name: 'Rot', c: '#ef6a56' }, { name: 'Blau', c: '#5ea8f5' }, { name: 'Gelb', c: '#f5d547' }, { name: 'Grün', c: '#5ccb83' }];
+  let timers = [], iv = 0, onKey = null;
+  const clear = () => {
+    timers.forEach(clearTimeout); timers = []; clearInterval(iv);
+    if (onKey) { document.removeEventListener('keydown', onKey); onKey = null; }
+  };
+
+  return {
+    id: ID, title: 'Stroop-Test', players: 1,
+    description: 'Tippe auf die Farbe der Schrift, nicht auf das Wort. Dreißig Sekunden, jeder Fehler kostet einen Punkt.',
+    init(c, api) {
+      const { bar, refreshBest } = gameBar('Stroop-Test', ID, api);
+      const stage = h('div', 'stage'); c.append(bar, stage);
+
+      const field = h('div', 'field stroop idle'), bg = h('div', 'layer'), msg = h('div', 'msg'), stim = h('div', 'stim');
+      const corner = h('div', 'corner num', String(TIME)), chip = h('div', 'tag chip'), opts = h('div', 'opts'), act = h('div', 'actions');
+      field.append(bg, msg, stim, corner, chip, opts, act); stage.append(field);
+
+      let phase = 'idle', score = 0, right = 0, wrong = 0, end = 0, cur = null;
+      COLORS.forEach((col, i) => {
+        const b = h('button', 'btn', col.name); b.type = 'button'; b.setAttribute('aria-label', col.name + ' (Taste ' + (i + 1) + ')');
+        b.onclick = () => answer(i); opts.append(b);
+      });
+      const view = ph => { phase = ph; field.className = 'field stroop ' + ph; };
+
+      function idle() {
+        clear(); view('idle'); act.replaceChildren();
+        msg.replaceChildren(h('div', 'main', 'Stroop-Test'), h('div', 'sub', 'Tippe auf die Farbe der Schrift, nicht auf das Wort. Du hast ' + TIME + ' Sekunden: richtig gibt einen Punkt, falsch kostet einen.'));
+        const go = h('button', 'btn primary', 'Start'); go.onclick = begin; act.append(go); go.focus({ preventScroll: true });
+      }
+
+      function nextStim() {
+        let w, i;
+        do { w = Math.floor(Math.random() * 4); i = Math.random() < .8 ? (w + 1 + Math.floor(Math.random() * 3)) % 4 : w; }
+        while (cur && cur.word === w && cur.ink === i);
+        cur = { word: w, ink: i }; stim.textContent = COLORS[w].name; stim.style.color = COLORS[i].c;
+      }
+
+      function begin() {
+        clear(); score = 0; right = 0; wrong = 0; cur = null; act.replaceChildren(); view('play');
+        end = performance.now() + TIME * 1000; corner.textContent = String(TIME); chip.textContent = 'Punkte 0'; nextStim();
+        onKey = e => { if (/^[1-4]$/.test(e.key) && !e.repeat) answer(+e.key - 1); };
+        document.addEventListener('keydown', onKey);
+        iv = setInterval(() => {
+          corner.textContent = String(Math.max(0, Math.ceil((end - performance.now()) / 1000)));
+          if (performance.now() >= end) finish();
+        }, 100);
+      }
+
+      function answer(i) {
+        if (phase !== 'play') return;
+        const ok = i === cur.ink;
+        if (ok) { score++; right++; } else { score = Math.max(0, score - 1); wrong++; }
+        field.classList.add(ok ? 'ok' : 'bad'); timers.push(setTimeout(() => field.classList.remove('ok', 'bad'), 220));
+        chip.textContent = 'Punkte ' + score; nextStim();
+      }
+
+      function finish() {
+        clear(); view('done');
+        const isNew = score > 0 && score > Score.getBest(ID); Score.submitScore(ID, score); refreshBest();
+        msg.replaceChildren(h('div', 'main', 'Zeit um'), h('div', 'sub', 'Richtig ' + right + ' · Falsch ' + wrong));
+        corner.textContent = String(score); chip.textContent = 'Endstand';
+        act.replaceChildren(); if (isNew) act.append(h('span', 'note chip', 'Neuer Bestwert'));
+        const again = h('button', 'btn', 'Nochmal'); again.onclick = begin; act.append(again); again.focus({ preventScroll: true });
+      }
+
+      idle();
+    },
+    destroy() { clear(); }
+  };
+})());
+
+/* ---------- Spiel 6: Mastermind (mastermind) ----------
+   Knacke den geheimen Farbcode (4 Plätze, 6 Farben, Wiederholungen möglich) in höchstens 10 Versuchen.
+   Rückmeldung pro Versuch: voller Punkt = Farbe und Platz richtig, Ring = Farbe kommt vor, steht aber woanders.
+   Score = 110 - 10 * Versuche (100 bis 10). Nicht geknackt = 0. */
+GAMES.push((() => {
+  const ID = 'mastermind', LEN = 4, MAXTRY = 10;
+  const COLORS = [{ name: 'Rot', c: '#ef6a56' }, { name: 'Gelb', c: '#f5d547' }, { name: 'Grün', c: '#5ccb83' },
+                  { name: 'Blau', c: '#5ea8f5' }, { name: 'Violett', c: '#b790f2' }, { name: 'Weiß', c: '#f3eee4' }];
+
+  /* exact = richtige Farbe am richtigen Platz; color = richtige Farbe am falschen Platz (jede Farbe nur einmal gezählt) */
+  function feedback(secret, guess) {
+    let exact = 0, color = 0; const s = [], g = [];
+    for (let i = 0; i < LEN; i++) { if (secret[i] === guess[i]) exact++; else { s.push(secret[i]); g.push(guess[i]); } }
+    for (const x of g) { const k = s.indexOf(x); if (k > -1) { color++; s.splice(k, 1); } }
+    return { exact, color };
+  }
+
+  return {
+    id: ID, title: 'Mastermind', players: 1,
+    description: 'Knacke den geheimen Farbcode aus vier Farben in höchstens zehn Versuchen. Je weniger Versuche, desto mehr Punkte.',
+    init(c, api) {
+      const { bar, refreshBest } = gameBar('Mastermind', ID, api);
+      const stage = h('div', 'stage mm'); c.append(bar, stage);
+      const board = h('div', 'mboard'), side = h('div', 'mside');
+      const status = h('p', 'mstatus'), slotsEl = h('div', 'slots'), pal = h('div', 'palette'), act = h('div', 'macts');
+      const legend = h('p', 'legend', '● Farbe + Platz richtig · ○ nur Farbe richtig');
+      side.append(status, slotsEl, pal, act, legend); stage.append(board, side);
+
+      /* Verlaufstafel: MAXTRY Zeilen mit je LEN Steinen und LEN Rückmelde-Punkten */
+      const rows = [];
+      for (let r = 0; r < MAXTRY; r++) {
+        const row = h('div', 'mrow'), pegs = h('div', 'mpegs'), pins = h('div', 'mpins'), pg = [], pn = [];
+        for (let i = 0; i < LEN; i++) { const p = h('span', 'mp'), q = h('span', 'mpin'); pegs.append(p); pins.append(q); pg.push(p); pn.push(q); }
+        row.append(pegs, pins); board.append(row); rows.push({ el: row, pg, pn });
+      }
+      /* Eingabe: LEN Plätze (Antippen leert den Platz) und eine Farbpalette */
+      const slots = [];
+      for (let i = 0; i < LEN; i++) { const b = h('button', 'slot'); b.type = 'button'; b.onclick = () => clearSlot(i); slots.push(b); slotsEl.append(b); }
+      COLORS.forEach((col, i) => {
+        const b = h('button', 'sw'); b.type = 'button'; b.style.background = col.c; b.setAttribute('aria-label', col.name); b.onclick = () => place(i); pal.append(b);
+      });
+      const check = h('button', 'btn primary', 'Prüfen'), undo = h('button', 'btn ghost', 'Löschen');
+      check.onclick = submit; undo.onclick = removeLast;
+
+      let secret = [], guess = [], attempt = 0, phase = 'play';
+
+      function paint(el, idx) { el.style.background = idx >= 0 ? COLORS[idx].c : ''; el.classList.toggle('f', idx >= 0); }
+
+      function render() {
+        slots.forEach((s, i) => { paint(s, guess[i]); s.setAttribute('aria-label', 'Platz ' + (i + 1) + ': ' + (guess[i] >= 0 ? COLORS[guess[i]].name : 'leer')); });
+        if (rows[attempt]) rows[attempt].pg.forEach((p, i) => paint(p, guess[i]));
+        rows.forEach((r, i) => r.el.classList.toggle('cur', phase === 'play' && i === attempt));
+        check.disabled = guess.includes(-1);
+        if (phase === 'play') status.textContent = 'Versuch ' + (attempt + 1) + ' von ' + MAXTRY;
+      }
+
+      function place(ci) { if (phase !== 'play') return; const k = guess.indexOf(-1); if (k > -1) { guess[k] = ci; render(); } }
+      function clearSlot(i) { if (phase !== 'play') return; guess[i] = -1; render(); }
+      function removeLast() { if (phase !== 'play') return; for (let i = LEN - 1; i >= 0; i--) if (guess[i] >= 0) { guess[i] = -1; break; } render(); }
+
+      function submit() {
+        if (phase !== 'play' || guess.includes(-1)) return;
+        const fb = feedback(secret, guess), r = rows[attempt];
+        for (let i = 0; i < fb.exact; i++) r.pn[i].classList.add('x');
+        for (let i = fb.exact; i < fb.exact + fb.color; i++) r.pn[i].classList.add('c');
+        if (fb.exact === LEN) return end(true);
+        attempt++;
+        if (attempt >= MAXTRY) return end(false);
+        guess = Array(LEN).fill(-1); render();
+      }
+
+      function end(win) {
+        phase = 'over'; side.classList.add('over');
+        const n = win ? attempt + 1 : MAXTRY, score = win ? 110 - 10 * n : 0;
+        const isNew = score > 0 && score > Score.getBest(ID); Score.submitScore(ID, score); refreshBest();
+        slots.forEach((s, i) => { paint(s, secret[i]); s.setAttribute('aria-label', 'Lösung, Platz ' + (i + 1) + ': ' + COLORS[secret[i]].name); });
+        status.replaceChildren(win ? 'Geknackt in ' + n + ' Versuchen · Punkte ' + score : 'Nicht geknackt · Punkte 0', h('br'), win ? 'Das war der Code.' : 'Das war die Lösung:');
+        rows.forEach(r => r.el.classList.remove('cur'));
+        act.replaceChildren(); if (isNew) act.append(h('span', 'note chip', 'Neuer Bestwert'));
+        const again = h('button', 'btn primary', 'Nochmal'); again.onclick = newGame; act.append(again); again.focus({ preventScroll: true });
+      }
+
+      function newGame() {
+        secret = Array.from({ length: LEN }, () => Math.floor(Math.random() * COLORS.length));
+        guess = Array(LEN).fill(-1); attempt = 0; phase = 'play'; side.classList.remove('over');
+        rows.forEach(r => { r.pg.forEach(p => { p.style.background = ''; p.classList.remove('f'); }); r.pn.forEach(q => { q.className = 'mpin'; }); });
+        act.replaceChildren(check, undo); render();
+      }
+
+      newGame();
+    }
   };
 })());
 
