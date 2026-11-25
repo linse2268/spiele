@@ -134,7 +134,7 @@ body{height:100%;color:var(--ink);font:400 16px/1.5 var(--mono);-webkit-font-smo
 .react .actions{z-index:2}
 @media (max-height:480px){.msg .main{font-size:44px}.msg .main.num{font-size:72px}.msg{gap:4px}}
 /* Schätzspiel */
-.est .fig{display:grid;place-items:center;padding:clamp(72px,12vw,120px) var(--pad)}
+.est .fig{display:grid;grid-template:minmax(0,1fr) / minmax(0,1fr);place-items:center;padding:clamp(72px,12vw,120px) var(--pad)}
 .est svg{width:100%;height:100%;overflow:visible}
 .est .ray,.est .ln{stroke:var(--ink);stroke-width:1.5;stroke-linecap:round;fill:none}
 .est .ln.ref{stroke:var(--accent)}
@@ -147,11 +147,38 @@ body{height:100%;color:var(--ink);font:400 16px/1.5 var(--mono);-webkit-font-smo
 .est .tag.top{top:var(--pad);bottom:auto;left:var(--pad)}
 .est .tags{position:absolute;left:var(--pad);bottom:var(--pad);display:flex;flex-wrap:wrap;gap:8px;max-width:calc(100% - 190px)}
 .est .chip.key{color:var(--accent)}
-@media (max-height:480px){.est .fig{padding:56px var(--pad) 64px}.est .tag.top{max-width:50%}}
+/* Ergebnis einer Runde: große Werte in einer Leiste am unteren Rand */
+.est.res .corner{display:none}
+.est.res .fig{padding-bottom:calc(var(--pad) + 124px)}
+.est .rpanel{position:absolute;left:var(--pad);right:var(--pad);bottom:var(--pad);z-index:2;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;padding:14px 16px 14px 24px;border-radius:26px;background:var(--bg);box-shadow:0 0 0 2px var(--line);animation:enter .35s var(--ease)}
+.est .stats{display:flex;align-items:flex-end;gap:clamp(18px,4vw,48px)}
+.est .stat .k{font-size:12px;color:var(--dim);margin-bottom:8px}
+.est .stat .v{font-size:clamp(28px,4.6vw,44px)}
+.est .stat.hero .v{color:var(--accent)}
+.est .v small,.est .tv small,.est .total small{font-size:.4em;font-weight:500;color:var(--dim);margin-left:.12em}
+.est .rpanel .btn{margin-left:auto}
+/* Endergebnis: Summe groß, darunter jede Runde mit erreichten von möglichen Punkten */
+.est .final-box{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;gap:clamp(10px,2.4vh,26px);padding:var(--pad) var(--pad) calc(var(--pad) + 76px);pointer-events:none}
+.est .final-label{color:var(--dim);font-size:14px}
+.est .total{font-size:clamp(64px,13vw,150px);color:var(--accent)}
+.est .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:10px}
+.est .tile{display:flex;flex-direction:column;gap:6px;min-width:0;padding:10px 12px 12px;border-radius:18px;background:var(--bg)}
+.est .tn{font-size:12px;color:var(--dim);white-space:nowrap}
+.est .tv{font-size:clamp(18px,3.2vw,28px)}
+.est .meter{height:4px;border-radius:2px;background:var(--line);overflow:hidden}
+.est .meter i{display:block;width:0;height:100%;border-radius:2px;background:var(--accent);transition:width .8s var(--ease)}
+@media (max-height:480px){
+  .est .fig{padding:56px var(--pad) 64px}.est .tag.top{max-width:50%}
+  .est.res .fig{padding-bottom:calc(var(--pad) + 84px)}
+  .est .rpanel{padding:8px 12px 8px 18px;border-radius:22px}
+  .est .stat .k{margin-bottom:4px}.est .stat .v{font-size:26px}
+  .est .total{font-size:56px}.est .final-box{gap:8px;padding-bottom:calc(var(--pad) + 62px)}
+}
+@media (orientation:portrait){.est.res .fig{padding-bottom:calc(var(--pad) + 170px)}}
 /* Stroop-Test */
-.stroop .layer{transition:box-shadow .15s}
-.stroop.ok .layer{box-shadow:inset 0 0 0 5px var(--accent)}
-.stroop.bad .layer{box-shadow:inset 0 0 0 5px var(--bad)}
+.stroop::after{content:'';position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 0 transparent;transition:box-shadow .15s;pointer-events:none}
+.stroop.ok::after{box-shadow:inset 0 0 0 5px var(--accent)}
+.stroop.bad::after{box-shadow:inset 0 0 0 5px var(--bad)}
 .stroop .stim{position:absolute;inset:0 0 calc(var(--pad) + 96px) 0;display:grid;place-items:center;font:400 clamp(72px,16vw,200px)/1 var(--display);pointer-events:none}
 .stroop .opts{position:absolute;left:var(--pad);right:var(--pad);bottom:var(--pad);display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 .stroop .opts .btn{min-height:76px;padding:0 6px;font-size:16px}
@@ -595,18 +622,18 @@ GAMES.push((() => {
 /* ---------- Spiel 4: Schätzspiel (estimate) ----------
    5 Runden mit zufälligen Aufgaben: Winkel, Kreisanteil oder Länge schätzen. Eingabe per vertikalem Slider.
    Punkte pro Runde: 100 * e^(-(Fehler/Toleranz)^1.5). Toleranz: Winkel 15, Kreisanteil 12, Länge 15 (relativ zum Sollwert).
-   Score = Summe aller Runden (max. 500). */
+   Score = Summe aller Runden (max. 500). Ergebnisanzeige: pro Runde erreichte von 100 Punkten, am Ende Summe von 500. */
 GAMES.push((() => {
   const ID = 'estimate', ROUNDS = 5, NS = 'http://www.w3.org/2000/svg';
   const el = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
   const pt = (cx, cy, r, deg) => [cx + r * Math.cos(deg * Math.PI / 180), cy + r * Math.sin(deg * Math.PI / 180)];
   const f1 = n => n.toFixed(2);
 
-  /* Aufgabentypen: liefern { prompt, max, truth, tol, rel, draw() } */
+  /* Aufgabentypen: liefern { label, prompt, max, truth, tol, rel, draw() } */
   const TYPES = {
     angle() {
       const a = rnd(15, 165), rot = rnd(0, 359);
-      return { prompt: 'Winkel schätzen (0 bis 180)', max: 180, truth: a, tol: 15, rel: false, draw() {
+      return { label: 'Winkel', prompt: 'Winkel schätzen (0 bis 180)', max: 180, truth: a, tol: 15, rel: false, draw() {
         const g = el('g', {}), p1 = pt(50, 30, 26, rot), p2 = pt(50, 30, 26, rot + a);
         g.append(el('line', { class: 'ray', x1: 50, y1: 30, x2: f1(p1[0]), y2: f1(p1[1]) }),
                  el('line', { class: 'ray', x1: 50, y1: 30, x2: f1(p2[0]), y2: f1(p2[1]) }),
@@ -616,7 +643,7 @@ GAMES.push((() => {
     },
     pie() {
       const p = rnd(8, 92), start = rnd(0, 359);
-      return { prompt: 'Kreisanteil schätzen (0 bis 100)', max: 100, truth: p, tol: 12, rel: false, draw() {
+      return { label: 'Kreis', prompt: 'Kreisanteil schätzen (0 bis 100)', max: 100, truth: p, tol: 12, rel: false, draw() {
         const g = el('g', {}), a = p * 3.6, s = pt(50, 30, 25, start), e = pt(50, 30, 25, start + a);
         g.append(el('circle', { class: 'pie-bg', cx: 50, cy: 30, r: 25 }),
                  el('path', { class: 'pie', d: `M50 30 L${f1(s[0])} ${f1(s[1])} A25 25 0 ${a > 180 ? 1 : 0} 1 ${f1(e[0])} ${f1(e[1])} Z` }),
@@ -626,7 +653,7 @@ GAMES.push((() => {
     },
     length() {
       const L = rnd(8, 88); /* Referenz: 40 Einheiten = 100 */
-      return { prompt: 'Länge schätzen: obere Linie = 100', max: 250, truth: Math.round(L * 2.5), tol: 15, rel: true, draw() {
+      return { label: 'Länge', prompt: 'Länge schätzen: obere Linie = 100', max: 250, truth: Math.round(L * 2.5), tol: 15, rel: true, draw() {
         const g = el('g', {}), t = el('text', { class: 'svgtxt', x: 30, y: 12, 'text-anchor': 'middle' });
         t.textContent = '100';
         g.append(t,
@@ -678,23 +705,38 @@ GAMES.push((() => {
         go.onclick = () => {
           const err = t.rel ? Math.abs(guess - t.truth) / t.truth * 100 : Math.abs(guess - t.truth);
           const p = Math.round(100 * Math.exp(-Math.pow(err / t.tol, 1.5)));
-          total += p; results.push(p);
+          total += p; results.push({ p, label: t.label });
           sl.track.style.pointerEvents = 'none'; sl.track.tabIndex = -1;
-          tags.append(h('span', 'chip', 'Tipp ' + guess), h('span', 'chip key', 'Richtig ' + t.truth), h('span', 'chip', 'Punkte ' + p));
+          /* Ergebnisleiste: Tipp, Sollwert und Punkte groß und gut lesbar */
+          const stat = (k, v, cls, of) => {
+            const s = h('div', 'stat' + (cls ? ' ' + cls : '')), val = h('div', 'v num', String(v));
+            if (of) val.append(h('small', null, of));
+            s.append(h('div', 'k', k), val); return s;
+          };
+          const stats = h('div', 'stats'); stats.append(stat('Dein Tipp', guess), stat('Richtig', t.truth), stat('Punkte', p, 'hero', '/100'));
           const next = h('button', 'btn primary', round + 1 < ROUNDS ? 'Weiter' : 'Ergebnis');
           next.onclick = () => { round++; round < ROUNDS ? ask() : finish(); };
-          act.replaceChildren(next); next.focus({ preventScroll: true });
+          const panel = h('div', 'rpanel'); panel.append(stats, next);
+          field.classList.add('res'); tags.remove(); act.remove(); field.append(panel); next.focus({ preventScroll: true });
         };
       }
 
       function finish() {
         stage.replaceChildren();
         const isNew = total > 0 && total > Score.getBest(ID); Score.submitScore(ID, total); refreshBest();
-        const field = h('div', 'field est'), bg = h('div', 'layer'), msg = h('div', 'msg'), corner = h('div', 'corner num', String(total)), act = h('div', 'actions');
-        msg.append(h('div', 'main', 'Fertig'), h('div', 'sub', results.join(' · ')));
+        const field = h('div', 'field est final'), bg = h('div', 'layer'), box = h('div', 'final-box'), act = h('div', 'actions');
+        const tot = h('div', 'total num', String(total)); tot.append(h('small', null, '/' + ROUNDS * 100));
+        const tiles = h('div', 'tiles'), fills = [];
+        results.forEach((r, i) => {
+          const tile = h('div', 'tile'), val = h('div', 'tv num', String(r.p)), meter = h('div', 'meter'), fill = h('i');
+          val.append(h('small', null, '/100')); fill.dataset.w = r.p; meter.append(fill); fills.push(fill);
+          tile.append(h('div', 'tn', (i + 1) + ' · ' + r.label), val, meter); tiles.append(tile);
+        });
+        box.append(h('div', 'final-label', 'Gesamtergebnis'), tot, tiles);
         if (isNew) act.append(h('span', 'note chip', 'Neuer Bestwert'));
         const again = h('button', 'btn', 'Nochmal'); again.onclick = newGame; act.append(again);
-        field.append(bg, msg, corner, act); stage.append(field); again.focus({ preventScroll: true });
+        field.append(bg, box, act); stage.append(field); again.focus({ preventScroll: true });
+        requestAnimationFrame(() => requestAnimationFrame(() => fills.forEach(f => { f.style.width = f.dataset.w + '%'; })));
       }
 
       newGame();
