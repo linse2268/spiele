@@ -1,4 +1,68 @@
 <!DOCTYPE html>
+<!--
+=====================================================================================================
+SPIELSTUBE - Dokumentation für Menschen und KI (lies das zuerst, dann ist der Rest der Datei verständlich)
+=====================================================================================================
+
+WAS IST DAS?
+  Eine Website mit kleinen Einzelspieler-Spielen. Genau EINE selbstständige HTML-Datei: HTML, CSS und
+  JavaScript stehen inline in dieser Datei. Es gibt keine Abhängigkeiten, außer optional Google Fonts
+  (mit Fallback-Schriften, die Seite funktioniert auch ohne). Kein Framework, kein Build-Schritt.
+  Alle sichtbaren Texte sind auf Deutsch. Nur Dark Mode. Optimiert für iPad im Querformat und Handys
+  (Hoch- und Querformat), bedienbar per Touch, Maus und Tastatur.
+
+DATEIAUFBAU (von oben nach unten)
+  1. Diese Dokumentation (HTML-Kommentar).
+  2. <style>: gesamtes CSS, in nummerierten Abschnitten.
+  3. <script>:
+       a) Score-Modul          (Highscores in localStorage, mit Fallback auf den Arbeitsspeicher)
+       b) Hilfsfunktionen      (h = Element bauen, Farbfunktionen, gameBar, slider)
+       c) Spiel-Registry       (GAMES-Array; jedes Spiel ist EIN Objekt, siehe unten)
+       d) Die Spiele           (6 Stück, jeweils ein GAMES.push(...) mit eigener Beschreibung)
+       e) Router               (Startseite, Hash-Routing, Fehleranzeige)
+
+SPIELE (Registry-ID = URL-Hash, z. B. index.html#stroop)
+  Registry-ID      Score-ID(s) im Speicher                    Besser =   Kurzregel
+  color-picker     color-picker                               höher      Farbe 5 s merken, per H/S/L-Slider nachmischen. Score 0..100:
+                                                                         60 % Farbton, 20 % Sättigung, 20 % Helligkeit.
+  block-sequence   block-sequence-2 ... block-sequence-6      höher      Blockfolge nachtippen (Raster 2x2 bis 6x6), Score = Länge der Folge.
+  reaction         reaction-ms                                NIEDRIGER  5 Reaktionen, Bestwert = Durchschnitt in Millisekunden.
+  estimate         estimate                                   höher      5 Schätzaufgaben (Winkel, Kreisanteil, Länge), Score 0..500.
+  stroop           stroop-4, stroop-6, stroop-8               höher      Schriftfarbe statt Wort antippen, 30 s, 4/6/8 Farben.
+  mastermind       mastermind                                 höher      Farbcode knacken, Score = 110 - 10 * Versuche (100 bis 10).
+  Alte, nicht mehr verwendete Speicher-Schlüssel (block-sequence, reaction, stroop) werden ignoriert.
+
+ARCHITEKTUR-KERN: SPIEL-REGISTRY
+  const GAMES = [] enthält Spielobjekte { id, title, description, players, init(container, api), ... }.
+  Die Startseite (home) und der Router (route) bauen Karten und Seiten ausschließlich aus diesem Array.
+  Ein neues Spiel = ein weiteres GAMES.push({...}) im Abschnitt "Spiele". Nichts anderes muss geändert werden.
+  Details und alle optionalen Felder stehen im Kommentarblock "SPIEL-REGISTRY" im Script.
+
+HIGHSCORES
+  localStorage-Key "spielstube.scores" enthält JSON: { "<score-id>": { "best": <Zahl> } }.
+  Zugriff NUR über das Score-Modul (getBest, has, submitScore). Alle Zugriffe sind try/catch-gesichert,
+  ohne Speicher läuft alles weiter (dann nur bis zum Neuladen der Seite).
+  Standard: höherer Wert ist besser. Für "niedriger ist besser" (Reaktionstest) übergibt man
+  { lowerIsBetter: true } an submitScore und nutzt has() zur Unterscheidung "noch kein Wert".
+
+KONVENTIONEN
+  - Zahlen werden als ganze Zahlen angezeigt. Einheiten nur dort, wo ausdrücklich gewünscht:
+    Reaktionstest (Millisekunden, "ms") und Punkteanzeigen der Form "76/100".
+  - Design: warmes Fast-Schwarz, EINE Akzentfarbe (Ocker), Instrument Serif für Titel, IBM Plex Mono für Zahlen
+    und Bedienelemente. Keine Emojis, keine Verläufe als Dekoration, keine Glas- oder Schatteneffekte.
+  - Alle Farben und Maße kommen aus den CSS-Variablen in :root (siehe CSS-Abschnitt 1).
+  - Hover-Effekte stehen IMMER in @media (hover:hover). Sonst bleibt auf Touchgeräten nach dem Antippen
+    der Hover-Zustand "kleben" (sichtbar als heller Rand oder invertierter Button).
+  - Touch-Flächen sind mindestens 44 px groß. Slider nutzen Pointer Events und touch-action:none.
+  - Höhen mit dvh, Safe Areas über env(safe-area-inset-*) am :root.
+  - Gemeinsame Bausteine: Klassen .btn .chip .num .card .field .layer .corner .tag .actions .msg .sl .lvl,
+    Funktionen h(), gameBar(), slider().
+  - Jedes Spiel räumt in destroy() Timer und Listener auf (der Router ruft es beim Verlassen auf).
+
+TESTEN (ohne Build): Datei im Browser öffnen. Direkt ins Spiel: Datei.html#estimate usw.
+  Die Seite zeigt Fehler im Router sichtbar an (Seite "Fehler"), statt leer zu bleiben.
+=====================================================================================================
+-->
 <html lang="de">
 <head>
 <meta charset="utf-8">
@@ -11,15 +75,27 @@
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <noscript><link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"></noscript>
 <style>
-/* ============ STYLES ============ */
+/* =====================================================================================
+   CSS-ÜBERSICHT: 1 Grundlagen | 2 Bausteine | 3 Startseite | 4 Spielgerüst | 5 Slider + Color Picker
+   6 Levelauswahl | 7 Blockfolge | 8 Allgemeine Responsive-Regeln | 9 Reaktionstest | 10 Schätzspiel
+   11 Stroop-Test | 12 Mastermind | 13 Kopfzeile auf schmalen Geräten | 14 Reduzierte Bewegung
+   Wichtig: Die Reihenfolge ist relevant (spätere Regeln überschreiben frühere gleicher Spezifität).
+   ===================================================================================== */
+
+/* ---------- 1. Grundlagen: Variablen, Reset, Seitenrahmen ---------- */
 :root{
-  --bg:#161310; --bg2:#25201b; --line:#4d453b; --ink:#f7f2e8; --dim:#b8ae9d; --accent:#f2b94b; --bad:#e5604d;
-  --r:28px; --gap:16px; --pad:clamp(16px,3vw,28px);
+  /* Palette: bg = Seitenhintergrund, bg2 = Flächen/Karten, line = feine Linien, ink = Haupttext,
+     dim = Nebentext, accent = die EINE Akzentfarbe, bad = Fehler/falsch, good = richtig */
+  --bg:#161310; --bg2:#25201b; --line:#4d453b; --ink:#f7f2e8; --dim:#b8ae9d; --accent:#f2b94b; --bad:#e5604d; --good:#5ccb83;
+  --r:28px;                              /* großer Eckenradius für Flächen und Karten */
+  --gap:16px;                            /* Standardabstand */
+  --pad:clamp(16px,3vw,28px);            /* Innenabstand der Spielflächen, wächst mit der Breite */
   --display:'Instrument Serif',Georgia,'Times New Roman',serif;
   --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
   --ease:cubic-bezier(.2,.7,.2,1);
   color-scheme:dark;
   box-sizing:border-box;
+  /* Safe Areas (Notch, Home-Indikator) */
   padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);
 }
 *,*::before,*::after{box-sizing:inherit}
@@ -27,66 +103,88 @@ html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
 html,body{margin:0;background:var(--bg)}
 body{height:100%;color:var(--ink);font:400 16px/1.5 var(--mono);-webkit-font-smoothing:antialiased;overflow:hidden}
 #app{height:100%;display:flex;flex-direction:column;min-height:0}
+/* .view = ein ganzer Bildschirm (Startseite oder Spiel), blendet beim Wechsel kurz ein */
 .view{flex:1;min-height:0;display:flex;flex-direction:column;animation:enter .35s var(--ease)}
 @keyframes enter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
-/* wiederverwendbare Bausteine */
+/* ---------- 2. Wiederverwendbare Bausteine ---------- */
+/* Button: Basis = Umriss. Varianten: .primary (Akzentfläche), .ghost (zurückhaltend). */
 .btn{min-height:52px;min-width:52px;padding:0 28px;border:2px solid var(--ink);background:transparent;color:var(--ink);font:500 15px var(--mono);border-radius:999px;cursor:pointer;transition:background .2s,color .2s,border-color .2s;touch-action:manipulation}
-.btn:hover,.btn:focus-visible{background:var(--ink);color:var(--bg)}
+.btn:focus-visible{background:var(--ink);color:var(--bg)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#1a1308}
-.btn.primary:hover,.btn.primary:focus-visible{background:var(--ink);border-color:var(--ink)}
+.btn.primary:focus-visible{background:var(--ink);border-color:var(--ink)}
 .btn.ghost{border-color:var(--line);color:var(--dim);padding:0 22px}
-.btn.ghost:hover,.btn.ghost:focus-visible{border-color:var(--ink);background:transparent;color:var(--ink)}
-:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.btn.ghost:focus-visible{border-color:var(--ink);background:transparent;color:var(--ink)}
+@media (hover:hover){
+  .btn:hover{background:var(--ink);color:var(--bg)}
+  .btn.primary:hover{background:var(--ink);border-color:var(--ink)}
+  .btn.ghost:hover{border-color:var(--ink);background:transparent;color:var(--ink)}
+}
+:focus-visible{outline:3px solid var(--accent);outline-offset:3px}   /* Tastaturfokus: Akzentring */
+/* .num = Zahlendarstellung (Monospace, gleich breite Ziffern) */
 .num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:500;line-height:1}
+/* .chip = kleine Pille mit Text (Beschriftungen, Hinweise) */
 .chip{padding:8px 14px;border-radius:999px;background:var(--bg);color:var(--ink);font-size:14px;font-weight:500;line-height:1}
+
+/* ---------- 3. Startseite ---------- */
 .card{display:grid;grid-template-columns:1fr auto;gap:var(--gap) 24px;align-items:end;padding:32px;border:2px solid var(--line);border-radius:var(--r);color:inherit;text-decoration:none;background:var(--bg2);transition:border-color .25s,transform .25s var(--ease)}
-.card:hover,.card:focus-visible{border-color:var(--accent);transform:translateY(-3px)}
+.card:focus-visible{border-color:var(--accent);transform:translateY(-3px)}
+@media (hover:hover){.card:hover{border-color:var(--accent);transform:translateY(-3px)}}
 .card h2{margin:0;font:400 44px/1 var(--display)}
 .card p{margin:12px 0 0;color:var(--dim);font-size:15px;max-width:46ch}
 .card .meta{text-align:right;color:var(--dim);font-size:14px}
 .card .meta .num{display:block;color:var(--accent);font-size:44px;margin-top:8px}
-
-/* Übersicht */
 .home{padding:clamp(24px,6vw,72px);overflow:auto}
 .home h1{margin:0 0 12px;font:400 clamp(56px,11vw,128px)/.9 var(--display);letter-spacing:-.02em}
 .home .lead{margin:0 0 clamp(32px,6vw,64px);color:var(--dim);max-width:44ch}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr));gap:var(--gap)}
 
-/* Spielgerüst */
+/* ---------- 4. Spielgerüst: Kopfzeile (.bar) und Spielfläche (.stage) ---------- */
 .bar{display:flex;align-items:center;gap:var(--gap);padding:var(--gap) var(--pad)}
 .bar h2{margin:0;font:400 32px/1 var(--display);flex:1}
 .bar .best{color:var(--dim);font-size:14px;display:flex;gap:12px;align-items:baseline}
 .bar .best .num{color:var(--accent);font-size:26px}
 .stage{flex:1;min-height:0;display:flex;gap:var(--gap);padding:0 var(--pad) var(--pad)}
 
-/* Color Picker */
-.sliders{display:flex;gap:12px;flex:none}
+/* ---------- 5. Slider (gemeinsamer Baustein) und Color Picker ---------- */
+.sliders{display:flex;gap:12px;flex:none}                 /* Container für einen oder mehrere Slider */
 .sl{display:flex;flex-direction:column;align-items:center;gap:12px;width:clamp(56px,7vw,76px)}
 .sl .track{position:relative;flex:1;width:100%;min-height:0;border-radius:999px;box-shadow:0 0 0 2px var(--line);touch-action:none;cursor:ns-resize;user-select:none;-webkit-user-select:none}
 .sl .thumb{position:absolute;left:50%;width:44px;height:44px;transform:translateX(-50%);border-radius:50%;border:4px solid var(--ink);background:var(--ink);box-shadow:0 0 0 2px var(--bg);pointer-events:none}
 .sl label{color:var(--ink);font-size:14px;font-weight:500;height:20px}
+/* .field = große abgerundete Fläche. Kinder: .layer (Vollflächen-Ebene), .corner (große Zahl oben rechts),
+   .tag (Chip unten links), .actions (Buttons unten rechts), .msg (zentrierter Text) */
 .field{position:relative;flex:1;min-width:0;border-radius:var(--r);overflow:hidden;background:var(--bg2)}
 .field .layer{position:absolute;inset:0}
 .field .corner{position:absolute;top:var(--pad);right:calc(var(--pad) + 4px);font-size:clamp(48px,9vw,120px);transition:color .2s}
 .field .tag{position:absolute;bottom:var(--pad)}
 .field .actions{position:absolute;right:var(--pad);bottom:var(--pad);display:flex;gap:12px;align-items:center}
-.field .note{color:var(--accent);animation:enter .4s var(--ease)}
+.field .note{color:var(--accent);animation:enter .4s var(--ease)}   /* Hinweis "Neuer Bestwert" */
 .field .actions .btn{background:var(--bg);border-color:var(--bg);color:var(--ink)}
-.field .actions .btn:hover,.field .actions .btn:focus-visible{background:var(--accent);border-color:var(--accent);color:#1a1308}
+.field .actions .btn:focus-visible{background:var(--accent);border-color:var(--accent);color:#1a1308}
+@media (hover:hover){.field .actions .btn:hover{background:var(--accent);border-color:var(--accent);color:#1a1308}}
+/* .msg = zentrierter Haupttext (.main) mit Nebenzeilen (.sub); wird von mehreren Spielen benutzt */
+.msg{position:absolute;inset:0;display:grid;place-content:center;gap:12px;text-align:center;padding:var(--pad);pointer-events:none}
+.msg .main{font:400 clamp(40px,8vw,96px)/1 var(--display)}
+.msg .main.num{font-size:clamp(64px,14vw,160px)}
+.msg .main small{font-size:.28em;font-weight:500;opacity:.7;margin-left:.25em}   /* Einheit hinter großer Zahl */
+.msg .sub{font-size:15px;opacity:.85}
+/* Color-Picker-Ergebnis: Originalfarbe links, eigene Farbe wird von rechts aufgedeckt */
 .compare .mine{clip-path:inset(0 0 0 100%);transition:clip-path .9s var(--ease) .15s}
 .compare.go .mine{clip-path:inset(0 0 0 50%)}
 
-/* Blockfolge: Levelauswahl */
+/* ---------- 6. Levelauswahl (Blockfolge und Stroop-Test) ---------- */
 .levels{flex:1;min-height:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:var(--gap);align-content:center;overflow:auto}
 .lvl{display:flex;flex-direction:column;gap:8px;text-align:left;padding:clamp(16px,2vw,28px);border:2px solid var(--line);border-radius:var(--r);background:var(--bg2);color:var(--ink);font:inherit;cursor:pointer;transition:border-color .25s,transform .25s var(--ease);touch-action:manipulation}
-.lvl:hover,.lvl:focus-visible{border-color:var(--accent);transform:translateY(-3px)}
+.lvl:focus-visible{border-color:var(--accent);transform:translateY(-3px)}
+@media (hover:hover){.lvl:hover{border-color:var(--accent);transform:translateY(-3px)}}
 .lvl .size{font-size:clamp(34px,5vw,64px);color:var(--accent)}
+.lvl .size small{font-size:.3em;font-weight:500;color:var(--dim);margin-left:.3em}
 .lvl .name{font:400 clamp(26px,3vw,38px)/1 var(--display);margin-top:8px}
 .lvl .rec{color:var(--dim);font-size:14px;margin-top:8px}
 .lvl .rec .num{color:var(--ink);margin-left:8px;font-size:18px}
 
-/* Blockfolge: Spiel */
+/* ---------- 7. Blockfolge ---------- */
 .seq{align-items:stretch}
 .side{display:flex;flex-direction:column;justify-content:center;gap:var(--gap);width:clamp(180px,24vw,280px);flex:none}
 .side .big{font-size:clamp(64px,12vw,140px);color:var(--accent)}
@@ -95,59 +193,59 @@ body{height:100%;color:var(--ink);font:400 16px/1.5 var(--mono);-webkit-font-smo
 .side .actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center;min-height:52px}
 .side .actions .note{color:var(--accent);background:var(--bg2)}
 .board-wrap{flex:1;min-width:0;min-height:0;container-type:size;display:grid;place-items:center}
-.board{width:min(100cqw,100cqh);height:min(100cqw,100cqh);display:grid;gap:clamp(6px,1.4cqmin,16px)}
+.board{width:min(100cqw,100cqh);height:min(100cqw,100cqh);display:grid;gap:clamp(6px,1.4cqmin,16px)}   /* immer quadratisch */
 .cell{border:2px solid var(--line);background:var(--bg2);border-radius:clamp(10px,2.6cqmin,24px);padding:0;min-width:0;min-height:0;cursor:pointer;transition:background .12s,border-color .12s,transform .12s;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-.cell:focus{outline:none}
-.cell:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.cell:focus{outline:none}                                              /* kein Fokusring durch Antippen */
+.cell:focus-visible{outline:3px solid var(--accent);outline-offset:3px} /* nur bei Tastaturbedienung */
 .board.locked .cell{cursor:default}
-.board:not(.locked) .cell:hover{border-color:var(--dim)}
-.cell.lit{background:var(--accent);border-color:var(--accent);transform:scale(.94)}
-.cell.wrong{background:var(--bad);border-color:var(--bad)}
-.cell.hint{border-color:var(--ink)}
+/* BEWUSST KEIN :hover-Stil auf Blöcken: Sonst erscheint nach dem Aufleuchten ein heller Rand um den Block
+   unter dem Mauszeiger bzw. (Touch) um den zuletzt angetippten Block. */
+.cell.lit{background:var(--accent);border-color:var(--accent);transform:scale(.94)}   /* Block der Folge leuchtet */
+.cell.wrong{background:var(--bad);border-color:var(--bad)}                           /* falsch angetippt (rot) */
+.cell.right{background:var(--good);border-color:var(--good)}                         /* der richtige Block (grün) */
 
-@media (max-height:480px){
+/* ---------- 8. Allgemeine Responsive-Regeln (gelten für mehrere Spiele) ---------- */
+@media (max-height:480px){      /* Handy im Querformat */
   .bar{padding-top:8px;padding-bottom:8px}.bar h2{font-size:24px}.btn{min-height:44px}
   .sl{gap:6px}.sl label{height:16px}.sl .thumb{width:40px;height:40px}.home{padding:20px}.home h1{font-size:48px}
   .side .big{font-size:56px}.side{gap:8px}
   .lvl{padding:12px}.lvl .size{font-size:32px}.lvl .name{font-size:24px;margin-top:0}
+  .msg .main{font-size:44px}.msg .main.num{font-size:72px}.msg{gap:4px}
 }
-@media (orientation:portrait){
+@media (orientation:portrait){  /* Hochformat */
   .seq{flex-direction:column}
   .side{width:auto;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between}
   .side .big{font-size:56px}.side .lbl{display:none}.side .status{flex:1;min-height:0}
   .levels{grid-template-columns:repeat(2,1fr);align-content:start}
 }
 @media (max-width:560px) and (orientation:portrait){.card{grid-template-columns:1fr}.card .meta{text-align:left}}
-/* Reaktionstest */
+
+/* ---------- 9. Reaktionstest ---------- */
+/* Zustandsklassen am .field: idle, wait, go, early, shown, done. Die Farbe der Fläche hängt am Zustand. */
 .react .pad{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;background:var(--bg2);transition:background .15s}
 .react .pad:focus{outline:none}
 .react .pad:focus-visible{outline:3px solid var(--accent);outline-offset:-6px}
-.react.go .pad{background:var(--accent)}
-.react.early .pad{background:var(--bad)}
-.react.go .msg,.react.go .corner,.react.early .msg,.react.early .corner{color:#1a1308}
-.msg{position:absolute;inset:0;display:grid;place-content:center;gap:12px;text-align:center;padding:var(--pad);pointer-events:none}
-.msg .main{font:400 clamp(40px,8vw,96px)/1 var(--display)}
-.msg .main.num{font-size:clamp(64px,14vw,160px)}
-.msg .sub{font-size:15px;opacity:.85}
-.react .corner,.react .tag{pointer-events:none}
-.react .tag{left:var(--pad)}
+.react.go .pad{background:var(--accent)}      /* Signal: jetzt tippen */
+.react.early .pad{background:var(--bad)}      /* zu früh getippt */
+.react.go .msg,.react.early .msg{color:#1a1308}
+.react .corner{display:none}
+.react .tag{left:var(--pad);pointer-events:none}
 .react .actions{z-index:2}
-@media (max-height:480px){.msg .main{font-size:44px}.msg .main.num{font-size:72px}.msg{gap:4px}}
-/* Schätzspiel */
+
+/* ---------- 10. Schätzspiel ---------- */
 .est .fig{display:grid;grid-template:minmax(0,1fr) / minmax(0,1fr);place-items:center;padding:clamp(72px,12vw,120px) var(--pad)}
 .est svg{width:100%;height:100%;overflow:visible}
 .est .ray,.est .ln{stroke:var(--ink);stroke-width:1.5;stroke-linecap:round;fill:none}
-.est .ln.ref{stroke:var(--accent)}
+.est .ln.ref{stroke:var(--accent)}            /* Referenzlinie (= 100) */
 .est .dot{fill:var(--ink)}
 .est .pie-bg{fill:var(--bg)}
 .est .pie{fill:var(--accent)}
 .est .rim{fill:none;stroke:var(--line);stroke-width:.8}
 .est .svgtxt{fill:var(--dim);font:500 5px var(--mono)}
 .est .tag{position:absolute;max-width:58%;white-space:normal;line-height:1.3;border-radius:20px}
-.est .tag.top{top:var(--pad);bottom:auto;left:var(--pad)}
+.est .tag.top{top:var(--pad);bottom:auto;left:var(--pad)}       /* Aufgabentext oben links */
 .est .tags{position:absolute;left:var(--pad);bottom:var(--pad);display:flex;flex-wrap:wrap;gap:8px;max-width:calc(100% - 190px)}
-.est .chip.key{color:var(--accent)}
-/* Ergebnis einer Runde: große Werte in einer Leiste am unteren Rand */
+/* Ergebnis einer Runde: große Werte in einer Leiste (.rpanel) am unteren Rand */
 .est.res .corner{display:none}
 .est.res .fig{padding-bottom:calc(var(--pad) + 124px)}
 .est .rpanel{position:absolute;left:var(--pad);right:var(--pad);bottom:var(--pad);z-index:2;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;padding:14px 16px 14px 24px;border-radius:26px;background:var(--bg);box-shadow:0 0 0 2px var(--line);animation:enter .35s var(--ease)}
@@ -157,7 +255,7 @@ body{height:100%;color:var(--ink);font:400 16px/1.5 var(--mono);-webkit-font-smo
 .est .stat.hero .v{color:var(--accent)}
 .est .v small,.est .tv small,.est .total small{font-size:.4em;font-weight:500;color:var(--dim);margin-left:.12em}
 .est .rpanel .btn{margin-left:auto}
-/* Endergebnis: Summe groß, darunter jede Runde mit erreichten von möglichen Punkten */
+/* Endergebnis: Summe groß (.total), darunter eine Kachel (.tile) pro Runde mit Fortschrittsbalken (.meter) */
 .est .final-box{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;gap:clamp(10px,2.4vh,26px);padding:var(--pad) var(--pad) calc(var(--pad) + 76px);pointer-events:none}
 .est .final-label{color:var(--dim);font-size:14px}
 .est .total{font-size:clamp(64px,13vw,150px);color:var(--accent)}
@@ -175,192 +273,257 @@ body{height:100%;color:var(--ink);font:400 16px/1.5 var(--mono);-webkit-font-smo
   .est .total{font-size:56px}.est .final-box{gap:8px;padding-bottom:calc(var(--pad) + 62px)}
 }
 @media (orientation:portrait){.est.res .fig{padding-bottom:calc(var(--pad) + 170px)}}
-/* Stroop-Test */
+
+/* ---------- 11. Stroop-Test ---------- */
+/* Klassen am .field: idle | play | done (Phase), r1/r2 (Zeilen der Antwortbuttons), big (mehr als 4 Farben),
+   ok/bad (kurzes Aufleuchten nach einer Antwort). Variablen: --btnh Buttonhöhe, --rows Zeilenzahl, --cols Spalten. */
+.stroop{--btnh:76px;--rows:1}
+.stroop.r2{--btnh:62px;--rows:2}
+/* Aufleucht-Ring: als ::after mit border-radius:inherit, damit er den runden Ecken folgt (sonst wird er abgeschnitten) */
 .stroop::after{content:'';position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 0 transparent;transition:box-shadow .15s;pointer-events:none}
 .stroop.ok::after{box-shadow:inset 0 0 0 5px var(--accent)}
 .stroop.bad::after{box-shadow:inset 0 0 0 5px var(--bad)}
-.stroop .stim{position:absolute;inset:0 0 calc(var(--pad) + 96px) 0;display:grid;place-items:center;font:400 clamp(72px,16vw,200px)/1 var(--display);pointer-events:none}
-.stroop .opts{position:absolute;left:var(--pad);right:var(--pad);bottom:var(--pad);display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-.stroop .opts .btn{min-height:76px;padding:0 6px;font-size:16px}
+.stroop .stim{position:absolute;inset:0 0 calc(var(--pad) + var(--rows) * var(--btnh) + (var(--rows) - 1) * 12px + 16px) 0;display:grid;place-items:center;font:400 clamp(72px,16vw,200px)/1 var(--display);pointer-events:none}
+.stroop .opts{position:absolute;left:var(--pad);right:var(--pad);bottom:var(--pad);display:grid;grid-template-columns:repeat(var(--cols,4),1fr);gap:12px}
+.stroop .opts .btn{min-height:var(--btnh);padding:0 6px;font-size:16px}
+.stroop.big .opts .btn{font-size:14px;padding:0 4px}
 .stroop .tag{top:var(--pad);left:var(--pad);bottom:auto}
 .stroop.idle .stim,.stroop.idle .opts,.stroop.idle .tag,.stroop.idle .corner,
 .stroop.done .stim,.stroop.done .opts{display:none}
 .stroop.play .msg,.stroop.play .actions{display:none}
 @media (max-height:480px){
-  .stroop .stim{inset:0 0 calc(var(--pad) + 68px) 0;font-size:80px}
-  .stroop .opts .btn{min-height:56px}
+  .stroop{--btnh:56px}.stroop.r2{--btnh:46px}
+  .stroop .stim{font-size:80px}
 }
-/* Mastermind */
-.mm{--u:clamp(26px,calc((100dvh - 150px) / 10),44px);align-items:center;justify-content:center;gap:clamp(16px,4vw,56px)}
+
+/* ---------- 12. Mastermind ---------- */
+/* --u = Höhe einer Verlaufszeile. Alle Größen des Bretts leiten sich daraus ab. Das Brett hat 11 Zeilen
+   (1 Code-Zeile + 10 Versuche), die Formel berücksichtigt Kopfzeile und Ränder, damit nichts scrollt. */
+.mm{--u:clamp(22px,calc((100dvh - 156px) / 11),42px);align-items:center;justify-content:center;gap:clamp(16px,4vw,56px)}
 .mboard{display:flex;flex-direction:column;gap:4px;flex:none}
 .mrow{height:var(--u);display:flex;align-items:center;gap:calc(var(--u) * .3);padding:0 calc(var(--u) * .35);border-radius:999px;background:var(--bg2);box-shadow:0 0 0 2px transparent;transition:box-shadow .2s}
-.mrow.cur{box-shadow:0 0 0 2px var(--accent)}
+.mrow.cur{box-shadow:0 0 0 2px var(--accent)}                  /* aktuelle Eingabezeile */
+.mrow.sol{margin-bottom:6px;background:var(--bg);box-shadow:0 0 0 2px var(--line)}   /* geheimer Code (oben) */
 .mpegs{display:flex;gap:calc(var(--u) * .14)}
 .mp{width:calc(var(--u) * .62);height:calc(var(--u) * .62);border-radius:50%;background:var(--bg);box-shadow:inset 0 0 0 2px var(--line)}
-.mp.f{box-shadow:none}
+.mp.f{box-shadow:none}                                         /* .f = gefüllt (hat eine Farbe) */
+.mp.q{display:grid;place-items:center;font:500 calc(var(--u) * .38)/1 var(--mono);color:var(--dim)}   /* verdeckter Code: "?" */
+.mrow.cur .mp.f{cursor:pointer}                                /* Stein der aktuellen Zeile antippen = entfernen */
 .mpins{display:grid;grid-template-columns:repeat(2,calc(var(--u) * .22));gap:calc(var(--u) * .08)}
+.mpins.ghost{visibility:hidden}                                /* Platzhalter, damit die Code-Zeile gleich breit ist */
 .mpin{width:calc(var(--u) * .22);height:calc(var(--u) * .22);border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--line)}
-.mpin.x{background:var(--ink);box-shadow:none}
-.mpin.c{box-shadow:inset 0 0 0 2px var(--ink)}
+.mpin.x{background:var(--ink);box-shadow:none}                 /* voller Punkt: Farbe UND Platz richtig */
+.mpin.c{box-shadow:inset 0 0 0 2px var(--ink)}                 /* Ring: nur die Farbe stimmt */
 .mside{display:flex;flex-direction:column;justify-content:center;gap:12px;width:clamp(250px,36vw,380px);flex:none}
 .mstatus{margin:0;font-size:15px;min-height:46px}
-.slots{display:flex;gap:12px}
-.slot{width:56px;height:56px;padding:0;border-radius:50%;background:var(--bg2);border:2px dashed var(--line);cursor:pointer;touch-action:manipulation;transition:border-color .2s}
-.slot.f{border:2px solid var(--ink)}
-.slot:hover{border-color:var(--ink)}
 .palette{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;justify-items:center}
 .sw{width:100%;max-width:58px;aspect-ratio:1;min-height:46px;padding:0;border-radius:50%;border:0;cursor:pointer;touch-action:manipulation;box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--line);transition:box-shadow .2s,transform .15s}
-.sw:hover,.sw:focus-visible{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--ink)}
+.sw:focus-visible{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--ink)}
+@media (hover:hover){.sw:hover{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--ink)}}
 .sw:active{transform:scale(.92)}
 .macts{display:flex;gap:12px;flex-wrap:wrap;align-items:center;min-height:52px}
 .macts .btn:disabled{opacity:.4;cursor:default;pointer-events:none}
 .macts .note{color:var(--accent);background:var(--bg2)}
-.legend{margin:0;color:var(--dim);font-size:13px}
+/* Legende: bewusst auffällig (Kasten, volle Textfarbe, echte Beispiel-Punkte) */
+.legend{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:18px;background:var(--bg2);box-shadow:0 0 0 2px var(--line);font-size:14px;color:var(--ink)}
+.lrow{display:flex;align-items:center;gap:10px}
+.legend .mpin{width:16px;height:16px;flex:none}
+.lnote{color:var(--accent);font-weight:500}
 .mside.over .palette,.mside.over .legend{display:none}
-.mside.over .slot{pointer-events:none;border-style:solid;border-color:var(--ink)}
 @media (orientation:portrait){
-  .mm{--u:clamp(22px,calc((100dvh - 430px) / 10),40px);flex-direction:column;gap:12px}
+  .mm{--u:clamp(20px,calc((100dvh - 450px) / 11),40px);flex-direction:column;gap:12px}
   .mside{width:100%;gap:10px}
   .mstatus{min-height:0}
   .palette{grid-template-columns:repeat(6,1fr);gap:8px}
+  .legend{font-size:13px;gap:6px;padding:10px 14px}   /* kompakter, damit Texte nicht umbrechen */
 }
 @media (max-height:480px){
   .mside{width:clamp(240px,40vw,340px);gap:8px}
-  .slot{width:48px;height:48px}
   .palette{gap:8px}
   .sw{max-width:46px}
   .mstatus{font-size:14px;min-height:0}
   .macts{min-height:44px}
-  .legend{font-size:12px}
+  .legend{font-size:12px;gap:5px;padding:8px 12px}
+  .legend .mpin{width:13px;height:13px}
 }
-/* Kopfzeile: Zurück-Button schrumpft nie, lange Titel kürzen sich statt zu überlaufen */
-.bar .btn{flex:none}
-.bar h2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---------- 13. Kopfzeile auf schmalen Geräten ---------- */
+.bar .btn{flex:none}                                              /* Zurück-Button schrumpft nie */
+.bar h2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}   /* lange Titel werden gekürzt */
 @media (max-width:560px){
   .bar{gap:10px}.bar h2{font-size:24px}.bar .btn.ghost{padding:0 14px}
   .bar .best{font-size:12px;gap:8px}.bar .best .num{font-size:22px}
 }
+
+/* ---------- 14. Reduzierte Bewegung (Systemeinstellung) ---------- */
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
 <div id="app"></div>
 <script>
-/* ============ SCORE-MODUL ============
-   Ein localStorage-Key, ein Objekt pro Spiel-ID: { "color-picker": { best: 87 } }
-   Fallback auf Arbeitsspeicher, falls der Speicher nicht verfügbar ist. */
+/* =====================================================================================
+   A) SCORE-MODUL - Highscores
+   -------------------------------------------------------------------------------------
+   Speicherformat: localStorage-Key "spielstube.scores" -> JSON { "<score-id>": { "best": <Zahl> } }
+   Jede Wertung hat eine eigene Score-ID (z. B. "stroop-6" = Stroop-Test mit 6 Farben).
+   Ist localStorage nicht verfügbar (privater Modus, blockiert), wird nur im Arbeitsspeicher gespeichert.
+
+   API:
+     Score.getBest(id)                      -> gespeicherter Bestwert, 0 wenn es noch keinen gibt
+     Score.has(id)                          -> true, wenn es bereits einen Bestwert gibt
+     Score.submitScore(id, wert, optionen)  -> speichert den Wert, wenn er besser ist als der alte.
+                                               optionen.lowerIsBetter = true: kleinerer Wert ist besser.
+                                               Gibt true zurück, wenn ein neuer Bestwert gespeichert wurde.
+   ===================================================================================== */
 const Score = (() => {
   const KEY = 'spielstube.scores';
-  let mem = {};
+  let mem = {};                                   // Fallback, falls localStorage nicht geht
   const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || mem; } catch (e) { return mem; } };
   const save = d => { mem = d; try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {} };
+  const stored = (d, id) => d[id] && typeof d[id].best === 'number' ? d[id].best : undefined;
   return {
-    getBest: id => { const e = load()[id]; return e && typeof e.best === 'number' ? e.best : 0; },
-    /* gibt true zurück, wenn ein neuer Bestwert erreicht wurde */
-    submitScore(id, s) {
-      const d = load(); const prev = d[id] && d[id].best;
-      if (typeof prev === 'number' && s <= prev) return false;
-      d[id] = { best: s }; save(d); return prev !== undefined || s > 0;
+    getBest: id => { const v = stored(load(), id); return v === undefined ? 0 : v; },
+    has: id => stored(load(), id) !== undefined,
+    submitScore(id, s, opts) {
+      const lower = !!(opts && opts.lowerIsBetter);
+      const d = load(), prev = stored(d, id);
+      if (prev !== undefined && (lower ? s >= prev : s <= prev)) return false;   // nicht besser
+      d[id] = { best: s }; save(d); return true;
     }
   };
 })();
 
-/* ============ HILFSFUNKTIONEN ============ */
+/* =====================================================================================
+   B) HILFSFUNKTIONEN
+   ===================================================================================== */
+
+/** Baut ein DOM-Element: h('div', 'klasse1 klasse2', 'Text'). cls und txt sind optional (txt als reiner Text). */
 const h = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+
+/** CSS-Farbstring aus HSL: H in Grad (0-360), S und L in Prozent (0-100). */
 const hsl = (H, S, L) => `hsl(${H} ${S}% ${L}%)`;
+
+/** Zufällige ganze Zahl von a bis b (beide inklusive; die Randwerte sind etwas seltener). */
 const rnd = (a, b) => Math.round(a + Math.random() * (b - a));
+
+/** HSL (H 0-360, S/L 0-100) -> sRGB als [r,g,b] mit Werten 0-1. */
 function hslToRgb(H, S, L) {
   S /= 100; L /= 100; const k = n => (n + H / 30) % 12, a = S * Math.min(L, 1 - L);
   const f = n => L - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
   return [f(0), f(8), f(4)];
 }
+
+/** sRGB-Gammakorrektur: Farbkanal (0-1) -> linear (für die Leuchtdichte). */
 const lin = c => c <= .04045 ? c / 12.92 : Math.pow((c + .055) / 1.055, 2.4);
-function toLab([r, g, b]) {
-  r = lin(r); g = lin(g); b = lin(b);
-  const X = (r * .4124 + g * .3576 + b * .1805) / .95047, Y = r * .2126 + g * .7152 + b * .0722, Z = (r * .0193 + g * .1192 + b * .9505) / 1.08883;
-  const f = t => t > .008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116;
-  return [116 * f(Y) - 16, 500 * (f(X) - f(Y)), 200 * (f(Y) - f(Z))];
-}
-/* CIEDE2000 (CIELAB-Farbabstand, wahrnehmungsgleichmäßig): gewichtet Helligkeit, Buntheit und Farbton
-   so, wie das Auge sie unterscheidet. ΔE00 ≈ 1 ist kaum sichtbar, ≈ 2 bei genauem Hinsehen, ≈ 5 klar sichtbar. */
-function ciede2000([L1, a1, b1], [L2, a2, b2]) {
-  const rad = Math.PI / 180, deg = 180 / Math.PI, p7 = Math.pow(25, 7);
-  const C1 = Math.hypot(a1, b1), C2 = Math.hypot(a2, b2), Cb7 = Math.pow((C1 + C2) / 2, 7);
-  const G = .5 * (1 - Math.sqrt(Cb7 / (Cb7 + p7)));
-  const a1p = (1 + G) * a1, a2p = (1 + G) * a2, C1p = Math.hypot(a1p, b1), C2p = Math.hypot(a2p, b2);
-  const h1p = C1p === 0 ? 0 : (Math.atan2(b1, a1p) * deg + 360) % 360, h2p = C2p === 0 ? 0 : (Math.atan2(b2, a2p) * deg + 360) % 360;
-  const dL = L2 - L1, dC = C2p - C1p; let dh = 0;
-  if (C1p * C2p !== 0) { dh = h2p - h1p; if (dh > 180) dh -= 360; else if (dh < -180) dh += 360; }
-  const dH = 2 * Math.sqrt(C1p * C2p) * Math.sin(dh * rad / 2);
-  const Lb = (L1 + L2) / 2, Cb = (C1p + C2p) / 2; let hb = h1p + h2p;
-  if (C1p * C2p !== 0) { if (Math.abs(h1p - h2p) > 180) hb += hb < 360 ? 360 : -360; hb /= 2; }
-  const T = 1 - .17 * Math.cos((hb - 30) * rad) + .24 * Math.cos(2 * hb * rad) + .32 * Math.cos((3 * hb + 6) * rad) - .2 * Math.cos((4 * hb - 63) * rad);
-  const dTh = 30 * Math.exp(-Math.pow((hb - 275) / 25, 2)), Rc = 2 * Math.sqrt(Math.pow(Cb, 7) / (Math.pow(Cb, 7) + p7));
-  const Sl = 1 + .015 * Math.pow(Lb - 50, 2) / Math.sqrt(20 + Math.pow(Lb - 50, 2)), Sc = 1 + .045 * Cb, Sh = 1 + .015 * Cb * T;
-  const Rt = -Math.sin(2 * dTh * rad) * Rc, x = dL / Sl, y = dC / Sc, z = dH / Sh;
-  return Math.sqrt(x * x + y * y + z * z + Rt * y * z);
-}
-const deltaE = (a, b) => ciede2000(toLab(hslToRgb(...a)), toLab(hslToRgb(...b)));
-/* Score: 100 * e^(-(ΔE00/16)^1.75). Kaum sichtbare Abweichungen bleiben bei fast 100, grobe fallen deutlich.
-   ΔE00 1 ≈ 99, 2 ≈ 97, 5 ≈ 88, 10 ≈ 65, 20 ≈ 24, 30 ≈ 5 */
-const scoreFromDelta = d => Math.round(100 * Math.exp(-Math.pow(d / 16, 1.75)));
-/* Schriftfarbe mit bestem Kontrast, nach echter Leuchtdichte der Farbe (hsl-Array) */
+
+/** Gut lesbare Schriftfarbe (dunkel oder hell) für Text auf der HSL-Farbe c = [H,S,L], nach echter Leuchtdichte. */
 const inkOn = c => { const [r, g, b] = hslToRgb(...c).map(lin); return (.2126 * r + .7152 * g + .0722 * b) > .18 ? '#14110d' : '#f7f2e8'; };
 
-/* Gemeinsame Kopfzeile für Spiele: Zurück, Titel, Bestwert.
-   idOrGetter: Score-ID (String) oder Funktion, die den anzuzeigenden Bestwert liefert.
-   refreshBest() liest den Wert neu und aktualisiert die Anzeige. */
-function gameBar(title, idOrGetter, api) {
-  const read = typeof idOrGetter === 'function' ? idOrGetter : () => Score.getBest(idOrGetter);
-  const bar = h('div', 'bar'), back = h('button', 'btn ghost', 'Zurück'), best = h('div', 'best');
-  back.onclick = api.back; best.append(h('span', null, 'Bestwert'));
-  const bestNum = h('span', 'num', String(read())); best.append(bestNum);
-  bar.append(back, h('h2', null, title), best);
-  return { bar, refreshBest: () => bestNum.textContent = String(read()) };
+/**
+ * Bewertung des Color Pickers. target und mine sind [H,S,L] (H 0-360, S/L 0-100). Ergebnis: ganze Zahl 0-100.
+ * Gewichtung: 60 % Farbton (H), 20 % Sättigung (S), 20 % Helligkeit (L).
+ * Jede Komponente bekommt 0-100 Punkte nach der Kurve 100 * e^(-(Abweichung/Toleranz)^1.5):
+ *   Farbton: Toleranz 25 Grad (Abstand zirkulär, also 350 und 10 haben 20 Grad Abstand),
+ *   Sättigung und Helligkeit: Toleranz 30 Prozentpunkte.
+ * Beispiel: nur 10 Grad Farbton daneben, S und L exakt -> 87 Punkte.
+ */
+function colorScore(target, mine) {
+  const part = (err, tol) => 100 * Math.exp(-Math.pow(err / tol, 1.5));
+  const dh = Math.abs(target[0] - mine[0]), hueErr = Math.min(dh, 360 - dh);
+  return Math.round(.6 * part(hueErr, 25) + .2 * part(Math.abs(target[1] - mine[1]), 30) + .2 * part(Math.abs(target[2] - mine[2]), 30));
 }
 
-/* Gemeinsamer Baustein: vertikaler Slider (unten = 0), per Touch, Maus und Tastatur bedienbar.
-   Der Griff bleibt komplett innerhalb der Schiene. Gibt { el, track, thumb, set(wert, feuern?), get() } zurück. */
-function slider(label, aria, max, onInput) {
+/**
+ * Gemeinsame Kopfzeile aller Spiele: [Zurück-Button] [Titel] [Bestwert].
+ * idOrGetter: Score-ID (String) ODER Funktion, die den anzuzeigenden Wert liefert (z. B. pro Level unterschiedlich).
+ * format: optionale Funktion Wert -> Text (z. B. v => v + ' ms'). Standard: String.
+ * Gibt { bar, refreshBest } zurück. refreshBest() liest den Wert neu und aktualisiert die Anzeige.
+ */
+function gameBar(title, idOrGetter, api, format) {
+  const read = typeof idOrGetter === 'function' ? idOrGetter : () => Score.getBest(idOrGetter);
+  const fmt = format || String;
+  const bar = h('div', 'bar'), back = h('button', 'btn ghost', 'Zurück'), best = h('div', 'best');
+  back.onclick = api.back; best.append(h('span', null, 'Bestwert'));
+  const bestNum = h('span', 'num', fmt(read())); best.append(bestNum);
+  bar.append(back, h('h2', null, title), best);
+  return { bar, refreshBest: () => { bestNum.textContent = fmt(read()); } };
+}
+
+/**
+ * Gemeinsamer Baustein: vertikaler Slider (unten = Minimum, oben = Maximum), per Touch, Maus und Tastatur bedienbar.
+ * Die Länge des Sliders bestimmt das Layout (CSS), min/max bestimmen nur die Werte.
+ *   label   sichtbare Beschriftung unter dem Slider
+ *   aria    Beschriftung für Screenreader
+ *   max     größter Wert
+ *   onInput Funktion(wert), wird bei jeder Änderung durch den Nutzer (und bei set(...,true)) aufgerufen
+ *   min     kleinster Wert (optional, Standard 0)
+ * Gibt { el, track, thumb, set(wert, feuern?), get() } zurück. Werte sind Kommazahlen; Aufrufer runden selbst.
+ * Hinweis: set() muss NACH dem Einfügen ins DOM aufgerufen werden (der Griff braucht seine Größe).
+ */
+function slider(label, aria, max, onInput, min = 0) {
+  const span = max - min;
   const sl = h('div', 'sl'), tr = h('div', 'track'), th = h('div', 'thumb'), lb = h('label', null, label);
   tr.append(th); sl.append(tr, lb);
   tr.tabIndex = 0; tr.setAttribute('role', 'slider'); tr.setAttribute('aria-label', aria); tr.setAttribute('aria-orientation', 'vertical');
-  tr.setAttribute('aria-valuemin', 0); tr.setAttribute('aria-valuemax', max);
-  let v = 0;
+  tr.setAttribute('aria-valuemin', min); tr.setAttribute('aria-valuemax', max);
+  let v = min;
+  /** Wert setzen (auf min..max begrenzt), Griff positionieren, optional onInput aufrufen. */
   const set = (x, fire) => {
-    v = Math.max(0, Math.min(max, x));
-    th.style.bottom = `calc((100% - ${th.offsetHeight || 44}px) * ${v / max})`;
+    v = Math.max(min, Math.min(max, x));
+    th.style.bottom = `calc((100% - ${th.offsetHeight || 44}px) * ${(v - min) / span})`;   // Griff bleibt komplett in der Schiene
     tr.setAttribute('aria-valuenow', Math.round(v)); if (fire) onInput(v);
   };
+  /** Zeigerposition (clientY) in einen Wert umrechnen. */
   const fromY = e => {
     const r = tr.getBoundingClientRect(), T = th.offsetHeight || 44;
-    set(Math.max(0, Math.min(1, (r.bottom - e.clientY - T / 2) / (r.height - T))) * max, true);
+    set(min + Math.max(0, Math.min(1, (r.bottom - e.clientY - T / 2) / (r.height - T))) * span, true);
   };
   tr.addEventListener('pointerdown', e => { tr.setPointerCapture(e.pointerId); fromY(e); });
   tr.addEventListener('pointermove', e => { if (tr.hasPointerCapture(e.pointerId)) fromY(e); });
-  tr.addEventListener('keydown', e => {
-    const st = max / 100 * (e.shiftKey ? 10 : 1), d = { ArrowUp: st, ArrowRight: st, ArrowDown: -st, ArrowLeft: -st }[e.key];
+  tr.addEventListener('keydown', e => {            // Pfeiltasten: 1 % pro Schritt (mindestens 1), mit Shift 10 %
+    const st = Math.max(1, span / 100) * (e.shiftKey ? 10 : 1), d = { ArrowUp: st, ArrowRight: st, ArrowDown: -st, ArrowLeft: -st }[e.key];
     if (d) { e.preventDefault(); set(v + d, true); }
   });
   return { el: sl, track: tr, thumb: th, set, get: () => v };
 }
 
-/* ============ SPIEL-REGISTRY ============
-   NEUES SPIEL HINZUFÜGEN:
-   Hänge unten im Array EIN Objekt an:
-   { id:'mein-spiel', title:'…', description:'…', players:1,   // 2 = Zwei-Spieler-Spiel
-     init(container, api){ … },   // baut das Spiel in container auf
-     destroy(){ … },              // optional: Timer/Listener aufräumen
-     getBest(){ … },              // optional: eigener Bestwert für die Karte (z. B. bei mehreren Levels)
-     bestLabel:'…' }              // optional: Beschriftung des Bestwerts auf der Karte
-   api = { Score, h, back() }. Nutze Score.getBest(id) und Score.submitScore(id, punkte).
-   Karte, Route (#mein-spiel) und Highscore erscheinen automatisch. */
+/* =====================================================================================
+   C) SPIEL-REGISTRY
+   -------------------------------------------------------------------------------------
+   NEUES SPIEL HINZUFÜGEN: Unten bei "D) DIE SPIELE" ein weiteres Objekt anhängen. Sonst nichts ändern.
+     GAMES.push({
+       id: 'mein-spiel',            // eindeutig, wird zum URL-Hash (#mein-spiel)
+       title: 'Mein Spiel',         // Titel auf Karte und in der Kopfzeile
+       description: '…',            // Kurzbeschreibung auf der Karte
+       players: 1,                  // 1 = Einzelspieler, 2 = Zwei-Spieler-Spiel (später)
+       init(container, api) { … },  // baut das Spiel in container auf (siehe unten)
+       // --- optional ---
+       destroy() { … },             // Timer, Intervalle und globale Listener aufräumen
+       getBest() { … },             // eigener Bestwert für die Startseitenkarte (sonst Score.getBest(id))
+       formatBest(wert) { … },      // Text für den Bestwert auf der Karte (z. B. wert + ' ms')
+       bestLabel: 'Bestwert (…)'    // Beschriftung des Bestwerts auf der Karte (Standard "Bestwert")
+     });
+   api = { Score, h, back() }: back() geht zur Startseite.
+   Typisches Gerüst im init: const { bar, refreshBest } = gameBar(titel, scoreId, api);
+     const stage = h('div', 'stage'); container.append(bar, stage); … danach in stage das Spiel aufbauen.
+   Punkte speichern: Score.submitScore(scoreId, punkte). Jedes Spiel nutzt eigene Score-IDs.
+   ===================================================================================== */
 const GAMES = [];
 
-/* ---------- Spiel 1: Color Picker ---------- */
+/* =====================================================================================
+   D) DIE SPIELE
+   ===================================================================================== */
+/* ---------- Spiel 1: Color Picker (Registry-ID "color-picker") ----------
+   ABLAUF: round() zeigt 5 Sekunden eine Zufallsfarbe mit Countdown -> mix() lässt den Spieler die Farbe mit
+   drei vertikalen HSL-Slidern (Hue, Saturation, Lightness) nachmischen -> result() vergleicht beide Farben
+   nebeneinander, zählt den Score 3 Sekunden lang hoch (Ease-out) und zeigt "Nochmal".
+   WERTUNG: colorScore() (siehe Hilfsfunktionen): 60 % Farbton, 20 % Sättigung, 20 % Helligkeit, Score 0-100.
+   SPEICHER: Score-ID "color-picker" (höher = besser). Es gibt keine feste Rundenzahl. */
 GAMES.push((() => {
-  const ID = 'color-picker'; let timers = [], raf = 0, cleanups = [];
-  const clear = () => { timers.forEach(clearInterval); timers.forEach(clearTimeout); timers = []; cancelAnimationFrame(raf); cleanups.forEach(f => f()); cleanups = []; };
+  const ID = 'color-picker'; let timers = [], raf = 0;
+  /** Stoppt Countdown-Intervall, Timeouts und die Hochzähl-Animation. */
+  const clear = () => { timers.forEach(clearInterval); timers.forEach(clearTimeout); timers = []; cancelAnimationFrame(raf); };
 
   return {
     id: ID, title: 'Color Picker', players: 1,
@@ -369,14 +532,16 @@ GAMES.push((() => {
       const { bar, refreshBest } = gameBar('Color Picker', ID, api);
       const stage = h('div', 'stage'); c.append(bar, stage);
 
+      /** Eine komplette Runde (Merken -> Mischen -> Ergebnis). */
       function round() {
         clear(); stage.replaceChildren();
-        /* faire Zufallsfarbe: kräftig, mittlere Helligkeit */
+        /* Faire Zufallsfarbe: kräftig (S 45-90) und weder zu dunkel noch zu hell (L 30-68). Format [H,S,L]. */
         const target = [rnd(0, 359), rnd(45, 90), rnd(30, 68)];
         const field = h('div', 'field'), layer = h('div', 'layer'), corner = h('div', 'corner num', '5');
         layer.style.background = hsl(...target); corner.style.color = inkOn(target);
         field.append(layer, corner); stage.append(field);
 
+        /* Phase 1: 5 Sekunden Countdown (5, 4, 3, 2, 1, 0), danach kurz warten und zu mix() wechseln. */
         const end = Date.now() + 5000; let shown = 5;
         const iv = setInterval(() => {
           const left = Math.max(0, Math.ceil((end - Date.now()) / 1000));
@@ -384,43 +549,47 @@ GAMES.push((() => {
           if (Date.now() >= end) { clearInterval(iv); timers.push(setTimeout(mix, 300)); }
         }, 100); timers.push(iv);
 
+        /** Phase 2: Slider links (H, S, L), große Vorschau der eigenen Farbe rechts, Button "Abschicken". */
         function mix() {
           stage.replaceChildren();
-          const cur = [180, 50, 50];
+          const cur = [180, 50, 50];                        // aktuelle Einstellung [H,S,L]
           const mine = h('div', 'layer'), f = h('div', 'field'), sub = h('div', 'actions'), go = h('button', 'btn primary', 'Abschicken');
           sub.append(go); f.append(mine, sub);
+          /** Färbt Vorschau und Slider-Hintergründe (Regenbogen, Sättigungs- und Helligkeitsverlauf) neu. */
           const paint = () => {
             mine.style.background = hsl(...cur);
             sH.track.style.background = 'linear-gradient(to top,' + [0, 60, 120, 180, 240, 300, 360].map(x => hsl(x, 100, 50)).join(',') + ')';
             sS.track.style.background = `linear-gradient(to top,${hsl(cur[0], 0, cur[2])},${hsl(cur[0], 100, cur[2])})`;
             sL.track.style.background = `linear-gradient(to top,#000,${hsl(cur[0], cur[1], 50)},#fff)`;
-            [sH, sS, sL].forEach(s => s.thumb.style.background = hsl(...cur)); /* Griff zeigt die aktuelle Farbe */
+            [sH, sS, sL].forEach(s => s.thumb.style.background = hsl(...cur));   // Griff zeigt die aktuelle Farbe
           };
           const sH = slider('H', 'Farbton', 360, v => { cur[0] = Math.round(v); paint(); });
           const sS = slider('S', 'Sättigung', 100, v => { cur[1] = Math.round(v); paint(); });
           const sL = slider('L', 'Helligkeit', 100, v => { cur[2] = Math.round(v); paint(); });
           const sw = h('div', 'sliders'); sw.append(sH.el, sS.el, sL.el);
           stage.append(sw, f);
-          sH.set(cur[0]); sS.set(cur[1]); sL.set(cur[2]); paint(); /* nach dem Einfügen, damit die Größen bekannt sind */
+          sH.set(cur[0]); sS.set(cur[1]); sL.set(cur[2]); paint();   // erst nach dem Einfügen, damit die Größen bekannt sind
           go.onclick = () => result(cur.slice());
         }
 
+        /** Phase 3: Original (links) und eigene Farbe (rechts) vergleichen, Score hochzählen. */
         function result(mine) {
           stage.replaceChildren();
-          const final = scoreFromDelta(deltaE(target, mine));
+          const final = colorScore(target, mine);
           const f = h('div', 'field compare'), a = h('div', 'layer'), m = h('div', 'layer mine'), sc = h('div', 'corner num', '0');
           a.style.background = hsl(...target); m.style.background = hsl(...mine); sc.style.color = inkOn(mine);
           const t1 = h('div', 'tag chip', 'Original'), t2 = h('div', 'tag chip', 'Deine Farbe');
           t1.style.left = 'var(--pad)'; t2.style.left = 'calc(50% + var(--pad))';
           const act = h('div', 'actions'); f.append(a, m, t1, t2, sc, act); stage.append(f);
-          requestAnimationFrame(() => requestAnimationFrame(() => f.classList.add('go')));
-          const t0 = performance.now(), D = 3000;
+          requestAnimationFrame(() => requestAnimationFrame(() => f.classList.add('go')));   // löst die Aufdeck-Animation aus
+          const t0 = performance.now(), D = 3000;                // 3 Sekunden hochzählen, Ease-out (kubisch)
           const step = now => {
             const p = Math.min(1, (now - t0) / D), e = 1 - Math.pow(1 - p, 3);
             sc.textContent = String(Math.round(final * e));
             if (p < 1) raf = requestAnimationFrame(step); else finish();
           };
           raf = requestAnimationFrame(step);
+          /** Nach der Animation: Bestwert speichern, "Neuer Bestwert" und "Nochmal" anzeigen. */
           function finish() {
             const isNew = final > 0 && final > Score.getBest(ID); Score.submitScore(ID, final); refreshBest();
             if (isNew) act.append(h('span', 'note chip', 'Neuer Bestwert'));
@@ -434,15 +603,19 @@ GAMES.push((() => {
   };
 })());
 
-/* ---------- Spiel 2: Blockfolge ----------
-   Levelauswahl (2x2 bis 6x6), danach leuchtet eine Folge auf und der Spieler tippt sie nach.
-   Richtig = ein Block kommt dazu. Falsch = Ende. Score = Länge der zuletzt geschafften Folge.
-   Jedes Level hat einen eigenen Bestwert (Score-ID "block-sequence-4" usw.). */
+/* ---------- Spiel 2: Blockfolge (Registry-ID "block-sequence") ----------
+   REGELN: Auf einem Raster (Level wählbar: 2x2, 3x3, 4x4, 5x5, 6x6) leuchtet eine Folge von Blöcken nacheinander auf
+   (Start: 3 Blöcke). Der Spieler tippt dieselbe Folge nach. Ist sie richtig, kommt ein weiterer Block dazu (die
+   bisherige Folge bleibt unverändert). Ein falscher Tipp beendet das Spiel: der falsche Block wird rot, der
+   RICHTIGE Block grün. Ein Block erscheint nie direkt zweimal hintereinander; das Tempo steigt mit der Länge.
+   WERTUNG: Score = Länge der zuletzt komplett richtig getippten Folge (Fehler in der ersten Runde = 0).
+   SPEICHER: pro Level eine Score-ID "block-sequence-<N>" (höher = besser). Die Startseite zeigt den Wert für 4x4.
+   AUFBAU: showLevels() -> play() -> start() -> show() (Folge abspielen) -> tap() (Eingabe) -> gameOver(). */
 GAMES.push((() => {
-  const ID = 'block-sequence', START = 3;
+  const ID = 'block-sequence', START = 3;                  // START = Länge der ersten Folge
   const LEVELS = [{ n: 2, name: 'Mini' }, { n: 3, name: 'Sehr leicht' }, { n: 4, name: 'Leicht' }, { n: 5, name: 'Mittel' }, { n: 6, name: 'Schwer' }];
-  const MAIN = 4; /* dieses Level liefert den Bestwert für die Startseite */
-  const sid = n => ID + '-' + n;
+  const MAIN = 4;                                          // dieses Level liefert den Bestwert für die Startseite
+  const sid = n => ID + '-' + n;                           // Score-ID eines Levels
   let timers = [];
   const later = (fn, ms) => { timers.push(setTimeout(fn, ms)); };
   const clear = () => { timers.forEach(clearTimeout); timers = []; };
@@ -450,13 +623,13 @@ GAMES.push((() => {
   return {
     id: ID, title: 'Blockfolge', players: 1,
     description: 'Merke dir die aufleuchtenden Blöcke und tippe sie in derselben Reihenfolge nach. Jede Runde kommt einer dazu.',
-    getBest: () => Score.getBest(sid(MAIN)), bestLabel: 'Bestwert 4×4', /* Startseite zeigt den Bestwert für 4×4 */
+    getBest: () => Score.getBest(sid(MAIN)), bestLabel: 'Bestwert 4×4',
     init(c, api) {
-      let level = null;
+      let level = null;                                    // gewähltes Level, null = Levelauswahl sichtbar
       const { bar, refreshBest } = gameBar('Blockfolge', () => Score.getBest(sid(level ? level.n : MAIN)), api);
       const stage = h('div', 'stage'); c.append(bar, stage);
 
-      /* ----- Levelauswahl ----- */
+      /** Levelauswahl: eine Karte pro Level mit eigenem Bestwert. */
       function showLevels() {
         clear(); level = null; refreshBest();
         stage.className = 'stage'; stage.replaceChildren();
@@ -471,15 +644,17 @@ GAMES.push((() => {
         stage.append(g);
       }
 
-      /* ----- Spiel ----- */
+      /** Das eigentliche Spiel für das gewählte Level. */
       function play() {
         clear(); const N = level.n, ALL = N * N, SID = sid(N);
         stage.className = 'stage seq'; stage.replaceChildren();
 
+        /* Seitenleiste: große Zahl (geschafft), Status, Aktionen */
         const side = h('div', 'side'), big = h('div', 'big num', '0'), lbl = h('div', 'lbl', 'Geschafft');
         const status = h('p', 'status'), actions = h('div', 'actions');
         side.append(big, lbl, status, actions);
 
+        /* Raster aus N*N Buttons; die Grid-Spalten/Zeilen werden per Inline-Style gesetzt */
         const wrap = h('div', 'board-wrap'), board = h('div', 'board locked'), cells = [];
         board.style.gridTemplateColumns = `repeat(${N},1fr)`; board.style.gridTemplateRows = `repeat(${N},1fr)`;
         for (let i = 0; i < ALL; i++) {
@@ -488,12 +663,14 @@ GAMES.push((() => {
         }
         wrap.append(board); stage.append(side, wrap);
 
-        let seq = [], pos = 0, locked = true, done = 0;
-        const lock = v => { locked = v; board.classList.toggle('locked', v); };
+        let seq = [], pos = 0, locked = true, done = 0;    // seq = Folge (Blockindizes), pos = nächster erwarteter Tipp, done = geschafft
+        const lock = v => { locked = v; board.classList.toggle('locked', v); };   // gesperrt = Eingabe ignorieren
         const flash = (n, cls, ms) => { cells[n].classList.add(cls); later(() => cells[n].classList.remove(cls), ms); };
         const unfocus = () => { if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); };
+        /** Hängt einen zufälligen Block an die Folge an (nie derselbe wie der letzte). */
         const addBlock = () => { let n; do { n = rnd(0, ALL - 1); } while (seq.length && n === seq[seq.length - 1]); seq.push(n); };
 
+        /** Neue Partie: Folge mit START Blöcken erzeugen und abspielen. */
         function start() {
           clear(); actions.replaceChildren(); cells.forEach(x => x.className = 'cell');
           seq = []; done = 0; big.textContent = '0';
@@ -501,29 +678,30 @@ GAMES.push((() => {
           show();
         }
 
-        /* Folge abspielen; wird mit der Länge etwas schneller */
+        /** Spielt die Folge ab (wird mit der Länge etwas schneller) und gibt danach die Eingabe frei. */
         function show() {
           unfocus(); lock(true); pos = 0; status.textContent = 'Merke dir die Reihenfolge';
-          const on = Math.max(260, 560 - seq.length * 14), gap = Math.max(120, 220 - seq.length * 4);
+          const on = Math.max(260, 560 - seq.length * 14), gap = Math.max(120, 220 - seq.length * 4);   // Leuchtdauer und Pause in ms
           let t = 700;
           seq.forEach(n => { later(() => flash(n, 'lit', on), t); t += on + gap; });
           later(() => { unfocus(); lock(false); status.textContent = 'Du bist dran'; }, t);
         }
 
+        /** Verarbeitet einen Tipp auf Block i. */
         function tap(i) {
           if (locked) return;
           if (i !== seq[pos]) return gameOver(i);
           flash(i, 'lit', 180); pos++;
-          if (pos === seq.length) {
+          if (pos === seq.length) {                        // ganze Folge richtig -> ein Block mehr
             lock(true); done = seq.length; big.textContent = String(done); status.textContent = 'Richtig';
             later(() => { addBlock(); show(); }, 800);
           }
         }
 
+        /** Falscher Tipp: falschen Block rot, den richtigen grün markieren, Bestwert speichern, Buttons zeigen. */
         function gameOver(wrong) {
           lock(true); status.textContent = 'Daneben';
-          cells[wrong].classList.add('wrong');
-          later(() => cells[seq[pos]].classList.add('hint'), 350); /* zeigt, wo es weitergegangen wäre */
+          cells[wrong].classList.add('wrong'); cells[seq[pos]].classList.add('right');
           const isNew = done > 0 && done > Score.getBest(SID); Score.submitScore(SID, done); refreshBest();
           actions.replaceChildren();
           if (isNew) actions.append(h('span', 'note chip', 'Neuer Bestwert'));
@@ -532,10 +710,11 @@ GAMES.push((() => {
           actions.append(again, pick); again.focus({ preventScroll: true });
         }
 
-        /* Antippen setzt keinen Fokus auf den Block (verhindert den weißen Fokusrahmen) */
+        /* Eingabe: pointerdown für minimale Verzögerung; mousedown-preventDefault und blur() verhindern, dass der
+           Block Fokus bekommt. Die Tastatur (Enter/Leertaste) löst click mit detail === 0 aus. */
         board.addEventListener('mousedown', e => e.preventDefault());
         board.addEventListener('pointerdown', e => { const b = e.target.closest('.cell'); if (b) { tap(+b.dataset.i); b.blur(); } });
-        board.addEventListener('click', e => { const b = e.target.closest('.cell'); if (b && e.detail === 0) tap(+b.dataset.i); }); /* Tastatur */
+        board.addEventListener('click', e => { const b = e.target.closest('.cell'); if (b && e.detail === 0) tap(+b.dataset.i); });
         start();
       }
 
@@ -545,95 +724,138 @@ GAMES.push((() => {
   };
 })());
 
-/* ---------- Spiel 3: Reaktionstest (reaction) ----------
-   5 Versuche: Warte, bis die Fläche aufleuchtet, und tippe so schnell wie möglich.
-   Punkte pro Versuch: 100 bei 150 oder schneller, 0 bei 650 oder langsamer (linear).
-   Score = Summe aller Versuche (max. 500). Zu früh getippt = Versuch zählt nicht, neuer Anlauf. */
+/* ---------- Spiel 3: Reaktionstest (Registry-ID "reaction", Score-ID "reaction-ms") ----------
+   REGELN: 5 Versuche. Die Fläche ist zuerst dunkel ("Warten ..."). Nach einer zufälligen Wartezeit (1,5-4 s)
+   leuchtet sie in der Akzentfarbe auf ("Jetzt!"); der Spieler tippt so schnell wie möglich. Wer VOR dem Signal tippt,
+   bekommt "Zu früh", der Versuch zählt nicht und wird neu gestartet.
+   WERTUNG: Jede Reaktionszeit wird in MILLISEKUNDEN angezeigt (Zahl mit Einheit "ms"). Das Ergebnis der Runde
+   ist der DURCHSCHNITT der 5 Zeiten (gerundet). Der Bestwert ist der NIEDRIGSTE Durchschnitt (niedriger = besser).
+   SPEICHER: Score-ID "reaction-ms" (Millisekunden). Der alte Schlüssel "reaction" (Punkte) wird ignoriert.
+   Solange es keinen Bestwert gibt, zeigt die Oberfläche "–" (Score.has verhindert, dass 0 als Bestzeit gilt).
+   ZUSTÄNDE (Klasse am .field und Variable state): idle -> wait -> go -> shown (Ergebnis eines Versuchs) ... -> done;
+   early = zu früh getippt. Gemessen wird mit dem Zeitstempel des Eingabeereignisses (e.timeStamp). */
 GAMES.push((() => {
-  const ID = 'reaction', TRIES = 5; let timers = [];
+  const ID = 'reaction-ms', TRIES = 5; let timers = [];
   const later = (fn, ms) => { timers.push(setTimeout(fn, ms)); };
   const clear = () => { timers.forEach(clearTimeout); timers = []; };
-  const pts = ms => Math.max(0, Math.min(100, Math.round((650 - ms) / 5)));
+  const best = () => Score.has(ID) ? Score.getBest(ID) : null;      // null = noch kein Bestwert
+  const fmt = v => v == null ? '–' : v + ' ms';                     // Anzeige des Bestwerts
 
   return {
-    id: ID, title: 'Reaktionstest', players: 1,
-    description: 'Warte auf das Signal und tippe so schnell du kannst. Fünf Versuche, je schneller, desto mehr Punkte.',
+    id: 'reaction', title: 'Reaktionstest', players: 1,
+    description: 'Warte auf das Signal und tippe so schnell du kannst. Fünf Versuche, gewertet wird der Durchschnitt in Millisekunden.',
+    getBest: best, formatBest: fmt, bestLabel: 'Bestwert (Ø)',
     init(c, api) {
-      const { bar, refreshBest } = gameBar('Reaktionstest', ID, api);
+      const { bar, refreshBest } = gameBar('Reaktionstest', best, api, fmt);
       const stage = h('div', 'stage'); c.append(bar, stage);
 
+      /* .pad = die tippbare Ebene, .msg = zentrierter Text (nicht klickbar), .tag = Chip "Versuch n von 5" */
       const field = h('div', 'field react idle'), pad = h('div', 'layer pad'), msg = h('div', 'msg');
-      const corner = h('div', 'corner num', '0'), chip = h('div', 'tag chip'), act = h('div', 'actions');
+      const chip = h('div', 'tag chip'), act = h('div', 'actions');
       pad.tabIndex = 0; pad.setAttribute('role', 'button'); pad.setAttribute('aria-label', 'Reaktionsfläche');
-      field.append(pad, msg, corner, chip, act); stage.append(field);
+      field.append(pad, msg, chip, act); stage.append(field);
 
-      let state = 'idle', n = 0, total = 0, results = [], tGo = 0, lockUntil = 0;
+      let state = 'idle', n = 0, times = [], tGo = 0, lockUntil = 0;   // n = gewertete Versuche, times = Zeiten in ms, tGo = Signalzeitpunkt
 
-      /* Anzeige: Zustand (steuert Farbe), Haupttext, Nebentext */
-      function show(st, main, sub, isNum) {
+      /**
+       * Anzeige setzen. st = Zustand (steuert die Farbe per CSS), main = Haupttext, subs = Array von Nebenzeilen,
+       * unit = Einheit hinter einer großen Zahl (z. B. 'ms'); ist unit gesetzt, wird main als Zahl dargestellt.
+       */
+      function show(st, main, subs, unit) {
         state = st; field.className = 'field react ' + st;
-        const m = h('div', 'main' + (isNum ? ' num' : ''), main);
-        msg.replaceChildren(m); if (sub) msg.append(h('div', 'sub', sub));
-        corner.textContent = String(total);
-        chip.textContent = st === 'idle' || st === 'done' ? '' : 'Versuch ' + Math.min(n + 1, TRIES);
+        const m = h('div', 'main' + (unit ? ' num' : ''), main);
+        if (unit) m.append(h('small', null, unit));
+        msg.replaceChildren(m); (subs || []).forEach(t => msg.append(h('div', 'sub', t)));
+        const cur = st === 'shown' ? n : n + 1;                          // nach einem Ergebnis: Nummer des gerade beendeten Versuchs
+        chip.textContent = st === 'idle' || st === 'done' ? '' : 'Versuch ' + Math.min(cur, TRIES) + ' von ' + TRIES;
         chip.style.display = chip.textContent ? '' : 'none';
       }
-      function reset() { clear(); n = 0; total = 0; results = []; act.replaceChildren(); }
+      function reset() { clear(); n = 0; times = []; act.replaceChildren(); }
 
+      /** Wartephase: nach zufälliger Zeit zeigt die Fläche das Signal und merkt sich den Startzeitpunkt. */
       function startWait() {
-        show('wait', 'Warten …', 'Tippe erst, wenn es leuchtet');
-        later(() => { tGo = performance.now(); show('go', 'Jetzt!', ''); }, rnd(1500, 4000));
+        show('wait', 'Warten …', ['Tippe erst, wenn es leuchtet']);
+        later(() => { tGo = performance.now(); show('go', 'Jetzt!', []); }, rnd(1500, 4000));
       }
 
+      /** Runde beendet: Durchschnitt bilden, Bestwert (niedriger = besser) speichern, Ergebnis zeigen. */
       function finish() {
-        const isNew = total > 0 && total > Score.getBest(ID); Score.submitScore(ID, total); refreshBest();
-        show('done', 'Fertig', results.join(' · '));
+        const avg = Math.round(times.reduce((a, b) => a + b, 0) / times.length);
+        const isNew = Score.submitScore(ID, avg, { lowerIsBetter: true }); refreshBest();
+        show('done', String(avg), ['Durchschnitt aus ' + TRIES + ' Versuchen', times.join(' · ') + ' ms'], 'ms');
         if (isNew) act.append(h('span', 'note chip', 'Neuer Bestwert'));
         const again = h('button', 'btn', 'Nochmal'); again.onclick = () => { reset(); startWait(); };
         act.append(again); again.focus({ preventScroll: true });
       }
 
-      /* ts = Zeitstempel des Eingabeereignisses (genauer als "jetzt") */
+      /** Eingabe (Tippen/Taste). ts = Zeitstempel des Ereignisses. Kurze Sperre verhindert versehentliches Weitertippen. */
       function press(ts) {
         if (ts < lockUntil || state === 'done') return;
         if (state === 'idle') { reset(); startWait(); }
-        else if (state === 'wait') {
+        else if (state === 'wait') {                                      // zu früh
           clear(); lockUntil = ts + 600;
-          show('early', 'Zu früh', 'Tippen für einen neuen Anlauf');
-        } else if (state === 'go') {
-          const ms = Math.max(0, Math.round(ts - tGo)), p = pts(ms);
-          results.push(p); total += p; n++;
+          show('early', 'Zu früh', ['Tippen für einen neuen Anlauf']);
+        } else if (state === 'go') {                                      // gültige Reaktion
+          const ms = Math.max(0, Math.round(ts - tGo));
+          times.push(ms); n++;
           if (n >= TRIES) return finish();
           lockUntil = ts + 500;
-          show('shown', String(ms), 'Punkte ' + p + ' · Tippen für den nächsten Versuch', true);
-        } else startWait(); /* early, shown */
+          show('shown', String(ms), ['Tippen für den nächsten Versuch'], 'ms');
+        } else startWait();                                               // nach "early" oder "shown": nächster Versuch
       }
 
       pad.addEventListener('pointerdown', e => { press(e.timeStamp); });
       pad.addEventListener('keydown', e => {
         if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); press(e.timeStamp); }
       });
-      show('idle', 'Tippen zum Start', TRIES + ' Versuche');
+      show('idle', 'Tippen zum Start', [TRIES + ' Versuche, gewertet wird der Durchschnitt in Millisekunden']);
     },
     destroy() { clear(); }
   };
 })());
 
-/* ---------- Spiel 4: Schätzspiel (estimate) ----------
-   5 Runden mit zufälligen Aufgaben: Winkel, Kreisanteil oder Länge schätzen. Eingabe per vertikalem Slider.
-   Punkte pro Runde: 100 * e^(-(Fehler/Toleranz)^1.5). Toleranz: Winkel 15, Kreisanteil 12, Länge 15 (relativ zum Sollwert).
-   Score = Summe aller Runden (max. 500). Ergebnisanzeige: pro Runde erreichte von 100 Punkten, am Ende Summe von 500. */
+/* ---------- Spiel 4: Schätzspiel (Registry-ID und Score-ID "estimate") ----------
+   REGELN: 5 Runden mit Schätzaufgaben (Winkel, Kreisanteil, Länge; jeder Typ kommt mindestens einmal vor, die
+   Reihenfolge ist gemischt). Eingabe über einen vertikalen Slider links; rechts steht die Grafik, oben rechts der
+   aktuell eingestellte Wert. "Abschicken" zeigt eine Ergebnisleiste (Dein Tipp, Richtig, Punkte x/100), "Weiter"
+   geht zur nächsten Runde, am Ende folgt das Gesamtergebnis (Summe/500 und eine Kachel pro Runde).
+   SLIDER-WERTEBEREICH: Die Länge des Sliders bleibt gleich, aber sein Wertebereich [min, max] wird pro Aufgabe
+   eng um den richtigen Wert gelegt (makeRange). So kann man genauer einstellen. Damit man nicht schummeln kann,
+   liegt der richtige Wert NIE in der Mitte des Bereichs (relative Position 5-38 % oder 62-95 %).
+   Breiten: Winkel 75, Kreisanteil 60, Länge 75 % des Sollwerts (mindestens 30); Toleranz/Breite ist überall 0,2.
+   WERTUNG pro Runde (0-100): 100 * e^(-(Fehler/Toleranz)^1.5); Toleranz: Winkel 15 (Grad), Kreisanteil 12 (Prozentpunkte),
+   Länge 15 % (Fehler relativ zum Sollwert). Score = Summe der 5 Runden (max. 500). Score-ID "estimate" (höher = besser).
+   AUFBAU: newGame() -> ask() (eine Runde) -> finish() (Gesamtergebnis). */
 GAMES.push((() => {
   const ID = 'estimate', ROUNDS = 5, NS = 'http://www.w3.org/2000/svg';
-  const el = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
-  const pt = (cx, cy, r, deg) => [cx + r * Math.cos(deg * Math.PI / 180), cy + r * Math.sin(deg * Math.PI / 180)];
+  const el = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };   // SVG-Element bauen
+  const pt = (cx, cy, r, deg) => [cx + r * Math.cos(deg * Math.PI / 180), cy + r * Math.sin(deg * Math.PI / 180)];   // Punkt auf Kreis
   const f1 = n => n.toFixed(2);
 
-  /* Aufgabentypen: liefern { label, prompt, max, truth, tol, rel, draw() } */
+  /**
+   * Legt den Slider-Wertebereich der Breite `width` so um `truth`, dass er in [dMin, dMax] bleibt und der Sollwert
+   * nicht in der Mitte liegt (relative Position in 5-38 % oder 62-95 %). Gibt { min, max } zurück.
+   */
+  function makeRange(truth, width, dMin, dMax) {
+    for (let W = width; W >= 10; W -= 5) {          // falls kein Platz: Bereich etwas schmaler versuchen
+      const a = Math.max(.05, 1 - (dMax - truth) / W), b = Math.min(.95, (truth - dMin) / W);   // erlaubte Position des Sollwerts im Bereich
+      const parts = [[a, Math.min(b, .38)], [Math.max(a, .62), b]].filter(p => p[1] - p[0] > .01);   // ohne die Mitte
+      if (!parts.length) continue;
+      const total = parts.reduce((s, p) => s + p[1] - p[0], 0); let r = Math.random() * total, p = parts[0];
+      for (const q of parts) { if (r <= q[1] - q[0]) { p = q; break; } r -= q[1] - q[0]; }          // Teilstück nach Länge gewichtet
+      const f = p[0] + Math.random() * (p[1] - p[0]), lo = Math.round(truth - f * W);
+      return { min: lo, max: lo + W };
+    }
+    return { min: dMin, max: dMax };
+  }
+
+  /* Aufgabentypen. Jede Funktion liefert { label, prompt, min, max, truth, tol, rel, draw() }:
+     label = Kurzname für die Ergebniskachel, prompt = Aufgabentext, min/max = Slider-Bereich, truth = richtiger Wert,
+     tol = Toleranz der Wertung, rel = Fehler relativ zum Sollwert (in Prozent) statt absolut, draw() = SVG-Grafik. */
   const TYPES = {
-    angle() {
-      const a = rnd(15, 165), rot = rnd(0, 359);
-      return { label: 'Winkel', prompt: 'Winkel schätzen (0 bis 180)', max: 180, truth: a, tol: 15, rel: false, draw() {
+    angle() {                                       // Winkel zwischen zwei Strahlen, 15-165 Grad
+      const a = rnd(15, 165), rot = rnd(0, 359), r = makeRange(a, 75, 0, 180);
+      return { label: 'Winkel', prompt: 'Winkel schätzen', min: r.min, max: r.max, truth: a, tol: 15, rel: false, draw() {
         const g = el('g', {}), p1 = pt(50, 30, 26, rot), p2 = pt(50, 30, 26, rot + a);
         g.append(el('line', { class: 'ray', x1: 50, y1: 30, x2: f1(p1[0]), y2: f1(p1[1]) }),
                  el('line', { class: 'ray', x1: 50, y1: 30, x2: f1(p2[0]), y2: f1(p2[1]) }),
@@ -641,9 +863,9 @@ GAMES.push((() => {
         return g;
       } };
     },
-    pie() {
-      const p = rnd(8, 92), start = rnd(0, 359);
-      return { label: 'Kreis', prompt: 'Kreisanteil schätzen (0 bis 100)', max: 100, truth: p, tol: 12, rel: false, draw() {
+    pie() {                                         // gefüllter Kreisausschnitt, 8-92 Prozent der Kreisfläche
+      const p = rnd(8, 92), start = rnd(0, 359), r = makeRange(p, 60, 0, 100);
+      return { label: 'Kreis', prompt: 'Kreisanteil schätzen', min: r.min, max: r.max, truth: p, tol: 12, rel: false, draw() {
         const g = el('g', {}), a = p * 3.6, s = pt(50, 30, 25, start), e = pt(50, 30, 25, start + a);
         g.append(el('circle', { class: 'pie-bg', cx: 50, cy: 30, r: 25 }),
                  el('path', { class: 'pie', d: `M50 30 L${f1(s[0])} ${f1(s[1])} A25 25 0 ${a > 180 ? 1 : 0} 1 ${f1(e[0])} ${f1(e[1])} Z` }),
@@ -651,9 +873,10 @@ GAMES.push((() => {
         return g;
       } };
     },
-    length() {
-      const L = rnd(8, 88); /* Referenz: 40 Einheiten = 100 */
-      return { label: 'Länge', prompt: 'Länge schätzen: obere Linie = 100', max: 250, truth: Math.round(L * 2.5), tol: 15, rel: true, draw() {
+    length() {                                      // untere Linie im Verhältnis zur oberen (Referenz = 100)
+      const L = rnd(8, 88), truth = Math.round(L * 2.5);          // Referenz: 40 Einheiten = 100, also Sollwert = L * 2,5
+      const r = makeRange(truth, Math.max(30, Math.round(truth * .75)), 0, 250);
+      return { label: 'Länge', prompt: 'Länge schätzen: obere Linie = 100', min: r.min, max: r.max, truth, tol: 15, rel: true, draw() {
         const g = el('g', {}), t = el('text', { class: 'svgtxt', x: 30, y: 12, 'text-anchor': 'middle' });
         t.textContent = '100';
         g.append(t,
@@ -664,7 +887,7 @@ GAMES.push((() => {
     }
   };
 
-  /* 5 Aufgaben: jeder Typ mindestens einmal, zwei weitere zufällig, dann mischen */
+  /** 5 Aufgaben: jeder Typ mindestens einmal, zwei weitere zufällig, dann mischen (Fisher-Yates). */
   function makeTasks() {
     const keys = Object.keys(TYPES), list = [...keys, keys[Math.floor(Math.random() * 3)], keys[Math.floor(Math.random() * 3)]];
     for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
@@ -677,37 +900,38 @@ GAMES.push((() => {
     init(c, api) {
       const { bar, refreshBest } = gameBar('Schätzspiel', ID, api);
       const stage = h('div', 'stage'); c.append(bar, stage);
-      let tasks = [], round = 0, total = 0, results = [];
+      let tasks = [], round = 0, total = 0, results = [];     // results = [{ p: Punkte, label }] je beendeter Runde
 
       function newGame() { tasks = makeTasks(); round = 0; total = 0; results = []; ask(); }
 
+      /** Eine Runde: Slider links, Grafik rechts. Nach "Abschicken" wird die Ergebnisleiste eingeblendet. */
       function ask() {
         stage.replaceChildren();
-        const t = tasks[round]; let guess = 0;
-        const field = h('div', 'field est'), fig = h('div', 'layer fig'), corner = h('div', 'corner num', '0');
+        const t = tasks[round]; let guess = t.min;
+        const field = h('div', 'field est'), fig = h('div', 'layer fig'), corner = h('div', 'corner num', String(t.min));
         const prompt = h('div', 'tag top chip', t.prompt), tags = h('div', 'tags'), act = h('div', 'actions');
         const go = h('button', 'btn primary', 'Abschicken');
         const svg = el('svg', { viewBox: '0 0 100 60', 'aria-hidden': 'true' }); svg.append(t.draw()); fig.append(svg);
         tags.append(h('span', 'chip', 'Runde ' + (round + 1) + ' von ' + ROUNDS)); act.append(go);
         field.append(fig, prompt, corner, tags, act);
 
-        /* Slider: Füllung folgt dem Griff */
+        /* Slider mit Wertebereich [t.min, t.max]; die Füllung (Akzentfarbe) folgt dem Griff. */
         const sl = slider('Tipp', 'Schätzwert', t.max, v => {
           guess = Math.round(v); corner.textContent = String(guess);
           const T = sl.thumb.offsetHeight || 44;
-          sl.track.style.background = `linear-gradient(to top,var(--accent) calc(${T / 2}px + (100% - ${T}px) * ${v / t.max}),var(--bg2) 0)`;
-        });
+          sl.track.style.background = `linear-gradient(to top,var(--accent) calc(${T / 2}px + (100% - ${T}px) * ${(v - t.min) / (t.max - t.min)}),var(--bg2) 0)`;
+        }, t.min);
         sl.thumb.style.background = 'var(--accent)';
         const sw = h('div', 'sliders'); sw.append(sl.el);
         stage.append(sw, field);
-        sl.set(0, true);
+        sl.set(t.min, true);
 
+        /* Auswertung: Fehler -> Punkte, Ergebnisleiste (Dein Tipp / Richtig / Punkte) mit Button "Weiter" bzw. "Ergebnis" */
         go.onclick = () => {
           const err = t.rel ? Math.abs(guess - t.truth) / t.truth * 100 : Math.abs(guess - t.truth);
           const p = Math.round(100 * Math.exp(-Math.pow(err / t.tol, 1.5)));
           total += p; results.push({ p, label: t.label });
-          sl.track.style.pointerEvents = 'none'; sl.track.tabIndex = -1;
-          /* Ergebnisleiste: Tipp, Sollwert und Punkte groß und gut lesbar */
+          sl.track.style.pointerEvents = 'none'; sl.track.tabIndex = -1;       // Slider sperren
           const stat = (k, v, cls, of) => {
             const s = h('div', 'stat' + (cls ? ' ' + cls : '')), val = h('div', 'v num', String(v));
             if (of) val.append(h('small', null, of));
@@ -721,6 +945,7 @@ GAMES.push((() => {
         };
       }
 
+      /** Gesamtergebnis: Summe/500, darunter pro Runde "erreicht/100" mit Balken. Speichert den Bestwert. */
       function finish() {
         stage.replaceChildren();
         const isNew = total > 0 && total > Score.getBest(ID); Score.submitScore(ID, total); refreshBest();
@@ -736,7 +961,7 @@ GAMES.push((() => {
         if (isNew) act.append(h('span', 'note chip', 'Neuer Bestwert'));
         const again = h('button', 'btn', 'Nochmal'); again.onclick = newGame; act.append(again);
         field.append(bg, box, act); stage.append(field); again.focus({ preventScroll: true });
-        requestAnimationFrame(() => requestAnimationFrame(() => fills.forEach(f => { f.style.width = f.dataset.w + '%'; })));
+        requestAnimationFrame(() => requestAnimationFrame(() => fills.forEach(f => { f.style.width = f.dataset.w + '%'; })));   // Balken wachsen lassen
       }
 
       newGame();
@@ -744,14 +969,29 @@ GAMES.push((() => {
   };
 })());
 
-/* ---------- Spiel 5: Stroop-Test (stroop) ----------
-   30 Sekunden: Ein Farbwort erscheint meist in einer anderen Schriftfarbe. Tippe auf die Schriftfarbe, nicht auf das Wort.
-   Richtig = +1, falsch = -1 (nie unter 0). Score = Punktestand nach Ablauf der Zeit.
-   Bedienung: Antippen oder Tasten 1 bis 4. */
+/* ---------- Spiel 5: Stroop-Test (Registry-ID "stroop") ----------
+   REGELN: Ein Farbwort (z. B. "Rot") erscheint in einer Schriftfarbe, die meist NICHT zum Wort passt (80 %; in 20 %
+   der Fälle passt sie). Der Spieler tippt auf den Button der SCHRIFTFARBE, nicht des Wortes. 30 Sekunden Zeit.
+   LEVEL (Levelauswahl wie bei der Blockfolge): 4 Farben (Leicht), 6 Farben (Mittel), 8 Farben (Schwer).
+   KEINE DOPPELUNGEN: Der nächste Reiz hat ein ANDERES Wort UND eine ANDERE Schriftfarbe als der vorherige
+   (weder das Wort noch die Farbe wiederholt sich direkt hintereinander, siehe nextStim).
+   WERTUNG: richtig = +1 Punkt, falsch = -1 Punkt (der Punktestand fällt nie unter 0). Score = Punktestand nach 30 s.
+   SPEICHER: pro Level eine Score-ID "stroop-<Farbanzahl>" (höher = besser). Startseite zeigt den Wert für 4 Farben.
+   BEDIENUNG: Antippen oder Zifferntasten 1 bis N (N = Farbanzahl). Nach jeder Antwort leuchtet kurz ein Ring
+   (Akzentfarbe = richtig, rot = falsch).
+   PHASEN (Klasse am .field): idle (Erklärung + Start), play (läuft), done (Ergebnis). AUFBAU: showLevels() -> play() ->
+   idle() -> begin() -> answer() ... -> finish(). */
 GAMES.push((() => {
-  const ID = 'stroop', TIME = 30;
-  const COLORS = [{ name: 'Rot', c: '#ef6a56' }, { name: 'Blau', c: '#5ea8f5' }, { name: 'Gelb', c: '#f5d547' }, { name: 'Grün', c: '#5ccb83' }];
+  const ID = 'stroop', TIME = 30, MAIN = 4, CONGRUENT = 0.2;      // CONGRUENT = Anteil der Reize, bei denen Wort und Farbe passen
+  /* Alle möglichen Farben in fester Reihenfolge; ein Level mit N Farben nutzt die ersten N. c = CSS-Farbe der Schrift. */
+  const ALL_COLORS = [
+    { name: 'Rot', c: '#ef6a56' }, { name: 'Blau', c: '#5ea8f5' }, { name: 'Gelb', c: '#f5d547' }, { name: 'Grün', c: '#5ccb83' },
+    { name: 'Orange', c: '#f59a3a' }, { name: 'Violett', c: '#b790f2' }, { name: 'Rosa', c: '#f58ac0' }, { name: 'Türkis', c: '#3fd0d0' }
+  ];
+  const LEVELS = [{ n: 4, name: 'Leicht' }, { n: 6, name: 'Mittel' }, { n: 8, name: 'Schwer' }];
+  const sid = n => ID + '-' + n;                                  // Score-ID eines Levels
   let timers = [], iv = 0, onKey = null;
+  /** Stoppt Timeouts, das Zeitintervall und den Tastatur-Listener. */
   const clear = () => {
     timers.forEach(clearTimeout); timers = []; clearInterval(iv);
     if (onKey) { document.removeEventListener('keydown', onKey); onKey = null; }
@@ -759,79 +999,134 @@ GAMES.push((() => {
 
   return {
     id: ID, title: 'Stroop-Test', players: 1,
-    description: 'Tippe auf die Farbe der Schrift, nicht auf das Wort. Dreißig Sekunden, jeder Fehler kostet einen Punkt.',
+    description: 'Tippe auf die Farbe der Schrift, nicht auf das Wort. Dreißig Sekunden, mit 4, 6 oder 8 Farben.',
+    getBest: () => Score.getBest(sid(MAIN)), bestLabel: 'Bestwert 4 Farben',
     init(c, api) {
-      const { bar, refreshBest } = gameBar('Stroop-Test', ID, api);
+      let level = null;                                           // gewähltes Level, null = Levelauswahl sichtbar
+      const { bar, refreshBest } = gameBar('Stroop-Test', () => Score.getBest(sid(level ? level.n : MAIN)), api);
       const stage = h('div', 'stage'); c.append(bar, stage);
 
-      const field = h('div', 'field stroop idle'), bg = h('div', 'layer'), msg = h('div', 'msg'), stim = h('div', 'stim');
-      const corner = h('div', 'corner num', String(TIME)), chip = h('div', 'tag chip'), opts = h('div', 'opts'), act = h('div', 'actions');
-      field.append(bg, msg, stim, corner, chip, opts, act); stage.append(field);
-
-      let phase = 'idle', score = 0, right = 0, wrong = 0, end = 0, cur = null;
-      COLORS.forEach((col, i) => {
-        const b = h('button', 'btn', col.name); b.type = 'button'; b.setAttribute('aria-label', col.name + ' (Taste ' + (i + 1) + ')');
-        b.onclick = () => answer(i); opts.append(b);
-      });
-      const view = ph => { phase = ph; field.className = 'field stroop ' + ph; };
-
-      function idle() {
-        clear(); view('idle'); act.replaceChildren();
-        msg.replaceChildren(h('div', 'main', 'Stroop-Test'), h('div', 'sub', 'Tippe auf die Farbe der Schrift, nicht auf das Wort. Du hast ' + TIME + ' Sekunden: richtig gibt einen Punkt, falsch kostet einen.'));
-        const go = h('button', 'btn primary', 'Start'); go.onclick = begin; act.append(go); go.focus({ preventScroll: true });
+      /** Levelauswahl: eine Karte pro Level (Farbanzahl groß, Name, eigener Bestwert). */
+      function showLevels() {
+        clear(); level = null; refreshBest();
+        stage.className = 'stage'; stage.replaceChildren();
+        const g = h('div', 'levels');
+        LEVELS.forEach(l => {
+          const b = h('button', 'lvl'); b.type = 'button';
+          const size = h('div', 'size num', String(l.n)); size.append(h('small', null, 'Farben'));
+          const rec = h('div', 'rec', 'Bestwert'); rec.append(h('span', 'num', String(Score.getBest(sid(l.n)))));
+          b.append(size, h('div', 'name', l.name), rec);
+          b.onclick = () => { level = l; refreshBest(); play(); };
+          g.append(b);
+        });
+        stage.append(g);
       }
 
-      function nextStim() {
-        let w, i;
-        do { w = Math.floor(Math.random() * 4); i = Math.random() < .8 ? (w + 1 + Math.floor(Math.random() * 3)) % 4 : w; }
-        while (cur && cur.word === w && cur.ink === i);
-        cur = { word: w, ink: i }; stim.textContent = COLORS[w].name; stim.style.color = COLORS[i].c;
+      /** Spiel für das gewählte Level aufbauen (Layout hängt von der Farbanzahl ab). */
+      function play() {
+        clear();
+        const N = level.n, COLORS = ALL_COLORS.slice(0, N), SID = sid(N);
+        const cols = N === 6 ? 3 : 4, rows = Math.ceil(N / cols);   // 4 Farben: 1x4, 6 Farben: 2x3, 8 Farben: 2x4 Buttons
+        const sizeCls = ' r' + rows + (N > 4 ? ' big' : '');        // CSS-Klassen für Zeilenzahl und kleinere Schrift
+        stage.className = 'stage'; stage.replaceChildren();
+
+        /* .stim = das große Farbwort, .opts = Antwortbuttons, .corner = Restzeit, .tag = Punktestand, .msg = Texte */
+        const field = h('div', 'field stroop idle' + sizeCls), bg = h('div', 'layer'), msg = h('div', 'msg'), stim = h('div', 'stim');
+        const corner = h('div', 'corner num', String(TIME)), chip = h('div', 'tag chip'), opts = h('div', 'opts'), act = h('div', 'actions');
+        opts.style.setProperty('--cols', cols);
+        field.append(bg, msg, stim, corner, chip, opts, act); stage.append(field);
+
+        let phase = 'idle', score = 0, right = 0, wrong = 0, end = 0, cur = null;   // cur = aktueller Reiz { word, ink } (Farbindizes)
+        COLORS.forEach((col, i) => {
+          const b = h('button', 'btn', col.name); b.type = 'button'; b.setAttribute('aria-label', col.name + ' (Taste ' + (i + 1) + ')');
+          b.onclick = () => answer(i); opts.append(b);
+        });
+        const view = ph => { phase = ph; field.className = 'field stroop ' + ph + sizeCls; };   // Phase wechseln (setzt auch ok/bad zurück)
+
+        /** Erklärungsbildschirm mit "Start" und "Level wählen". */
+        function idle() {
+          clear(); view('idle'); act.replaceChildren();
+          msg.replaceChildren(h('div', 'main', 'Stroop-Test'), h('div', 'sub', 'Tippe auf die Farbe der Schrift, nicht auf das Wort. ' + N + ' Farben, ' + TIME + ' Sekunden: richtig gibt einen Punkt, falsch kostet einen.'));
+          const go = h('button', 'btn primary', 'Start'); go.onclick = begin;
+          const pick = h('button', 'btn', 'Level wählen'); pick.onclick = showLevels;
+          act.append(go, pick); go.focus({ preventScroll: true });
+        }
+
+        /**
+         * Wählt den nächsten Reiz. Wort UND Schriftfarbe müssen sich vom vorherigen Reiz unterscheiden
+         * (keine Doppelungen). In 80 % der Fälle passt die Farbe NICHT zum Wort, sonst (CONGRUENT) schon.
+         */
+        function nextStim() {
+          let w, i;
+          do {
+            w = Math.floor(Math.random() * N);
+            i = Math.random() < CONGRUENT ? w : (w + 1 + Math.floor(Math.random() * (N - 1))) % N;   // (w + 1..N-1) mod N ist nie w
+          } while (cur && (w === cur.word || i === cur.ink));
+          cur = { word: w, ink: i }; stim.textContent = COLORS[w].name; stim.style.color = COLORS[i].c;
+        }
+
+        /** Startet die 30 Sekunden: Zähler zurücksetzen, ersten Reiz zeigen, Timer und Zifferntasten aktivieren. */
+        function begin() {
+          clear(); score = 0; right = 0; wrong = 0; cur = null; act.replaceChildren(); view('play');
+          end = performance.now() + TIME * 1000; corner.textContent = String(TIME); chip.textContent = 'Punkte 0'; nextStim();
+          onKey = e => { if (/^[1-9]$/.test(e.key) && !e.repeat && +e.key <= N) answer(+e.key - 1); };
+          document.addEventListener('keydown', onKey);
+          iv = setInterval(() => {                                   // Restzeit anzeigen, bei 0 beenden
+            corner.textContent = String(Math.max(0, Math.ceil((end - performance.now()) / 1000)));
+            if (performance.now() >= end) finish();
+          }, 100);
+        }
+
+        /** Antwort i (Farbindex) auswerten: +1 bei richtig, -1 bei falsch (mindestens 0), Ring aufleuchten lassen, nächster Reiz. */
+        function answer(i) {
+          if (phase !== 'play') return;
+          const ok = i === cur.ink;
+          if (ok) { score++; right++; } else { score = Math.max(0, score - 1); wrong++; }
+          field.classList.add(ok ? 'ok' : 'bad'); timers.push(setTimeout(() => field.classList.remove('ok', 'bad'), 220));
+          chip.textContent = 'Punkte ' + score; nextStim();
+        }
+
+        /** Zeit abgelaufen: Bestwert speichern, Endstand zeigen. */
+        function finish() {
+          clear(); view('done');
+          const isNew = score > 0 && score > Score.getBest(SID); Score.submitScore(SID, score); refreshBest();
+          msg.replaceChildren(h('div', 'main', 'Zeit um'), h('div', 'sub', 'Richtig ' + right + ' · Falsch ' + wrong));
+          corner.textContent = String(score); chip.textContent = 'Endstand';
+          act.replaceChildren(); if (isNew) act.append(h('span', 'note chip', 'Neuer Bestwert'));
+          const again = h('button', 'btn', 'Nochmal'); again.onclick = begin;
+          const pick = h('button', 'btn', 'Level wählen'); pick.onclick = showLevels;
+          act.append(again, pick); again.focus({ preventScroll: true });
+        }
+
+        idle();
       }
 
-      function begin() {
-        clear(); score = 0; right = 0; wrong = 0; cur = null; act.replaceChildren(); view('play');
-        end = performance.now() + TIME * 1000; corner.textContent = String(TIME); chip.textContent = 'Punkte 0'; nextStim();
-        onKey = e => { if (/^[1-4]$/.test(e.key) && !e.repeat) answer(+e.key - 1); };
-        document.addEventListener('keydown', onKey);
-        iv = setInterval(() => {
-          corner.textContent = String(Math.max(0, Math.ceil((end - performance.now()) / 1000)));
-          if (performance.now() >= end) finish();
-        }, 100);
-      }
-
-      function answer(i) {
-        if (phase !== 'play') return;
-        const ok = i === cur.ink;
-        if (ok) { score++; right++; } else { score = Math.max(0, score - 1); wrong++; }
-        field.classList.add(ok ? 'ok' : 'bad'); timers.push(setTimeout(() => field.classList.remove('ok', 'bad'), 220));
-        chip.textContent = 'Punkte ' + score; nextStim();
-      }
-
-      function finish() {
-        clear(); view('done');
-        const isNew = score > 0 && score > Score.getBest(ID); Score.submitScore(ID, score); refreshBest();
-        msg.replaceChildren(h('div', 'main', 'Zeit um'), h('div', 'sub', 'Richtig ' + right + ' · Falsch ' + wrong));
-        corner.textContent = String(score); chip.textContent = 'Endstand';
-        act.replaceChildren(); if (isNew) act.append(h('span', 'note chip', 'Neuer Bestwert'));
-        const again = h('button', 'btn', 'Nochmal'); again.onclick = begin; act.append(again); again.focus({ preventScroll: true });
-      }
-
-      idle();
+      showLevels();
     },
     destroy() { clear(); }
   };
 })());
 
-/* ---------- Spiel 6: Mastermind (mastermind) ----------
-   Knacke den geheimen Farbcode (4 Plätze, 6 Farben, Wiederholungen möglich) in höchstens 10 Versuchen.
-   Rückmeldung pro Versuch: voller Punkt = Farbe und Platz richtig, Ring = Farbe kommt vor, steht aber woanders.
-   Score = 110 - 10 * Versuche (100 bis 10). Nicht geknackt = 0. */
+/* ---------- Spiel 6: Mastermind (Registry-ID und Score-ID "mastermind") ----------
+   REGELN: Das Spiel wählt einen geheimen Code aus 4 Plätzen. Jeder Platz hat eine von 6 Farben; EINE FARBE DARF
+   MEHRFACH VORKOMMEN. Der Spieler hat höchstens 10 Versuche. Er wählt Farben aus der Palette; sie füllen von links nach
+   rechts die AKTUELLE ZEILE DES BRETTS (es gibt keine separaten Eingabefelder, man schaut nur auf die Kette).
+   "Löschen" entfernt den letzten Stein (ein Stein der aktuellen Zeile lässt sich auch direkt antippen).
+   "Prüfen" (nur bei 4 gefüllten Plätzen aktiv) bewertet den Versuch; rechts neben der Zeile erscheinen Rückmelde-Punkte:
+     VOLLER PUNKT = richtige Farbe am richtigen Platz, RING = richtige Farbe am falschen Platz (jede Farbe wird nur
+     so oft gezählt, wie sie im Code vorkommt). Die Position der Punkte sagt NICHTS über die Plätze aus.
+   Ganz oben auf dem Brett steht die Code-Zeile: verdeckt ("?") während des Spiels, am Ende aufgedeckt.
+   WERTUNG: geknackt nach n Versuchen: Score = 110 - 10 * n (1 Versuch = 100 ... 10 Versuche = 10); nicht geknackt = 0.
+   SPEICHER: Score-ID "mastermind" (höher = besser). AUFBAU: newGame() -> place()/removeLast()/clearSlot() -> submit() -> end(). */
 GAMES.push((() => {
   const ID = 'mastermind', LEN = 4, MAXTRY = 10;
   const COLORS = [{ name: 'Rot', c: '#ef6a56' }, { name: 'Gelb', c: '#f5d547' }, { name: 'Grün', c: '#5ccb83' },
                   { name: 'Blau', c: '#5ea8f5' }, { name: 'Violett', c: '#b790f2' }, { name: 'Weiß', c: '#f3eee4' }];
 
-  /* exact = richtige Farbe am richtigen Platz; color = richtige Farbe am falschen Platz (jede Farbe nur einmal gezählt) */
+  /**
+   * Vergleicht Versuch und Code (Arrays aus Farbindizes). exact = richtige Farbe am richtigen Platz,
+   * color = richtige Farbe am falschen Platz. Doppelte Farben werden korrekt gezählt (jedes Code-Element nur einmal).
+   */
   function feedback(secret, guess) {
     let exact = 0, color = 0; const s = [], g = [];
     for (let i = 0; i < LEN; i++) { if (secret[i] === guess[i]) exact++; else { s.push(secret[i]); g.push(guess[i]); } }
@@ -846,42 +1141,58 @@ GAMES.push((() => {
       const { bar, refreshBest } = gameBar('Mastermind', ID, api);
       const stage = h('div', 'stage mm'); c.append(bar, stage);
       const board = h('div', 'mboard'), side = h('div', 'mside');
-      const status = h('p', 'mstatus'), slotsEl = h('div', 'slots'), pal = h('div', 'palette'), act = h('div', 'macts');
-      const legend = h('p', 'legend', '● Farbe + Platz richtig · ○ nur Farbe richtig');
-      side.append(status, slotsEl, pal, act, legend); stage.append(board, side);
+      const status = h('p', 'mstatus'), pal = h('div', 'palette'), act = h('div', 'macts');
 
-      /* Verlaufstafel: MAXTRY Zeilen mit je LEN Steinen und LEN Rückmelde-Punkten */
+      /* Legende (bewusst auffällig): Beispiel-Punkte mit Erklärung plus Hinweis auf mehrfache Farben */
+      const legend = h('div', 'legend');
+      const lrow = (cls, text) => { const r = h('div', 'lrow'); r.append(h('span', 'mpin ' + cls), h('span', null, text)); return r; };
+      legend.append(lrow('x', 'Voller Punkt: Farbe und Platz richtig'), lrow('c', 'Ring: Farbe richtig, Platz falsch'),
+                    h('div', 'lnote', 'Eine Farbe darf mehrfach vorkommen.'));
+      side.append(status, pal, act, legend); stage.append(board, side);
+
+      /* Code-Zeile ganz oben: 4 verdeckte Steine ("?") und ein unsichtbarer Pin-Platzhalter für gleiche Breite */
+      const solRow = h('div', 'mrow sol'), solPegs = h('div', 'mpegs'), ghost = h('div', 'mpins ghost'), solPg = [];
+      solRow.setAttribute('aria-label', 'Geheimer Code');
+      for (let i = 0; i < LEN; i++) { const p = h('span', 'mp q', '?'); solPegs.append(p); solPg.push(p); ghost.append(h('span', 'mpin')); }
+      solRow.append(solPegs, ghost); board.append(solRow);
+
+      /* Verlaufszeilen: MAXTRY Zeilen mit je LEN Steinen (pg) und LEN Rückmelde-Punkten (pn) */
       const rows = [];
       for (let r = 0; r < MAXTRY; r++) {
         const row = h('div', 'mrow'), pegs = h('div', 'mpegs'), pins = h('div', 'mpins'), pg = [], pn = [];
-        for (let i = 0; i < LEN; i++) { const p = h('span', 'mp'), q = h('span', 'mpin'); pegs.append(p); pins.append(q); pg.push(p); pn.push(q); }
+        for (let i = 0; i < LEN; i++) {
+          const p = h('span', 'mp'), q = h('span', 'mpin');
+          p.onclick = () => { if (phase === 'play' && r === attempt) clearSlot(i); };   // nur Steine der aktuellen Zeile
+          pegs.append(p); pins.append(q); pg.push(p); pn.push(q);
+        }
         row.append(pegs, pins); board.append(row); rows.push({ el: row, pg, pn });
       }
-      /* Eingabe: LEN Plätze (Antippen leert den Platz) und eine Farbpalette */
-      const slots = [];
-      for (let i = 0; i < LEN; i++) { const b = h('button', 'slot'); b.type = 'button'; b.onclick = () => clearSlot(i); slots.push(b); slotsEl.append(b); }
+
+      /* Farbpalette: ein runder Button pro Farbe */
       COLORS.forEach((col, i) => {
         const b = h('button', 'sw'); b.type = 'button'; b.style.background = col.c; b.setAttribute('aria-label', col.name); b.onclick = () => place(i); pal.append(b);
       });
       const check = h('button', 'btn primary', 'Prüfen'), undo = h('button', 'btn ghost', 'Löschen');
       check.onclick = submit; undo.onclick = removeLast;
 
-      let secret = [], guess = [], attempt = 0, phase = 'play';
+      let secret = [], guess = [], attempt = 0, phase = 'play';   // secret/guess = Farbindizes (guess: -1 = leer), attempt = aktuelle Zeile (0-9)
 
+      /** Färbt einen Stein (idx = Farbindex, -1 = leer). */
       function paint(el, idx) { el.style.background = idx >= 0 ? COLORS[idx].c : ''; el.classList.toggle('f', idx >= 0); }
 
+      /** Zeichnet die aktuelle Zeile, Markierung, "Prüfen"-Status und Statustext neu. */
       function render() {
-        slots.forEach((s, i) => { paint(s, guess[i]); s.setAttribute('aria-label', 'Platz ' + (i + 1) + ': ' + (guess[i] >= 0 ? COLORS[guess[i]].name : 'leer')); });
-        if (rows[attempt]) rows[attempt].pg.forEach((p, i) => paint(p, guess[i]));
+        if (rows[attempt]) rows[attempt].pg.forEach((p, i) => { paint(p, guess[i]); p.setAttribute('aria-label', 'Platz ' + (i + 1) + ': ' + (guess[i] >= 0 ? COLORS[guess[i]].name : 'leer')); });
         rows.forEach((r, i) => r.el.classList.toggle('cur', phase === 'play' && i === attempt));
         check.disabled = guess.includes(-1);
         if (phase === 'play') status.textContent = 'Versuch ' + (attempt + 1) + ' von ' + MAXTRY;
       }
 
-      function place(ci) { if (phase !== 'play') return; const k = guess.indexOf(-1); if (k > -1) { guess[k] = ci; render(); } }
+      function place(ci) { if (phase !== 'play') return; const k = guess.indexOf(-1); if (k > -1) { guess[k] = ci; render(); } }   // Farbe auf den ersten freien Platz
       function clearSlot(i) { if (phase !== 'play') return; guess[i] = -1; render(); }
       function removeLast() { if (phase !== 'play') return; for (let i = LEN - 1; i >= 0; i--) if (guess[i] >= 0) { guess[i] = -1; break; } render(); }
 
+      /** Versuch bewerten: Rückmelde-Punkte setzen (volle zuerst, dann Ringe); bei 4 richtigen ist das Spiel gewonnen. */
       function submit() {
         if (phase !== 'play' || guess.includes(-1)) return;
         const fb = feedback(secret, guess), r = rows[attempt];
@@ -893,20 +1204,23 @@ GAMES.push((() => {
         guess = Array(LEN).fill(-1); render();
       }
 
+      /** Spielende: Code aufdecken, Score berechnen und speichern, "Nochmal" anbieten. */
       function end(win) {
         phase = 'over'; side.classList.add('over');
         const n = win ? attempt + 1 : MAXTRY, score = win ? 110 - 10 * n : 0;
         const isNew = score > 0 && score > Score.getBest(ID); Score.submitScore(ID, score); refreshBest();
-        slots.forEach((s, i) => { paint(s, secret[i]); s.setAttribute('aria-label', 'Lösung, Platz ' + (i + 1) + ': ' + COLORS[secret[i]].name); });
-        status.replaceChildren(win ? 'Geknackt in ' + n + ' Versuchen · Punkte ' + score : 'Nicht geknackt · Punkte 0', h('br'), win ? 'Das war der Code.' : 'Das war die Lösung:');
+        solPg.forEach((p, i) => { p.textContent = ''; p.classList.remove('q'); paint(p, secret[i]); p.setAttribute('aria-label', 'Code, Platz ' + (i + 1) + ': ' + COLORS[secret[i]].name); });
+        status.replaceChildren(win ? 'Geknackt in ' + n + ' Versuchen' : 'Nicht geknackt', h('br'), 'Punkte ' + score + (win ? '' : ' · Der Code steht oben'));
         rows.forEach(r => r.el.classList.remove('cur'));
         act.replaceChildren(); if (isNew) act.append(h('span', 'note chip', 'Neuer Bestwert'));
         const again = h('button', 'btn primary', 'Nochmal'); again.onclick = newGame; act.append(again); again.focus({ preventScroll: true });
       }
 
+      /** Neue Partie: zufälligen Code wählen (Wiederholungen erlaubt), Brett leeren. */
       function newGame() {
         secret = Array.from({ length: LEN }, () => Math.floor(Math.random() * COLORS.length));
         guess = Array(LEN).fill(-1); attempt = 0; phase = 'play'; side.classList.remove('over');
+        solPg.forEach(p => { p.textContent = '?'; p.className = 'mp q'; p.style.background = ''; });
         rows.forEach(r => { r.pg.forEach(p => { p.style.background = ''; p.classList.remove('f'); }); r.pn.forEach(q => { q.className = 'mpin'; }); });
         act.replaceChildren(check, undo); render();
       }
@@ -916,11 +1230,16 @@ GAMES.push((() => {
   };
 })());
 
-/* ============ ROUTER ============
-   Hash-Routing: #color-picker öffnet das Spiel, leer = Übersicht. */
-const app = document.getElementById('app'); let active = null;
-const api = { Score, h, back: () => { location.hash = ''; } };
+/* =====================================================================================
+   E) ROUTER - Startseite, Hash-Routing, Fehleranzeige
+   -------------------------------------------------------------------------------------
+   Der URL-Hash bestimmt die Seite: "#stroop" öffnet das Spiel mit id "stroop", leer = Startseite.
+   Der Wechsel geschieht ohne Neuladen (hashchange-Ereignis). Beim Verlassen wird destroy() des Spiels aufgerufen.
+   ===================================================================================== */
+const app = document.getElementById('app'); let active = null;      // active = aktuell geöffnetes Spielobjekt
+const api = { Score, h, back: () => { location.hash = ''; } };     // wird jedem Spiel in init(container, api) übergeben
 
+/** Baut die Startseite: Titel und eine Karte pro Spiel (Titel, Beschreibung, Bestwert). */
 function home() {
   const v = h('main', 'view home');
   v.append(h('h1', null, 'Spielstube'), h('p', 'lead', 'Kleine Spiele für zwischendurch. Wähle eines aus und versuche, deinen Bestwert zu schlagen.'));
@@ -928,13 +1247,14 @@ function home() {
   GAMES.forEach(game => {
     const a = h('a', 'card'); a.href = '#' + game.id;
     const l = h('div'); l.append(h('h2', null, game.title), h('p', null, game.description));
-    const m = h('div', 'meta', game.bestLabel || 'Bestwert'); m.append(h('span', 'num', String(game.getBest ? game.getBest() : Score.getBest(game.id))));
+    const best = game.getBest ? game.getBest() : Score.getBest(game.id);          // Spiele können eigene Bestwerte liefern
+    const m = h('div', 'meta', game.bestLabel || 'Bestwert'); m.append(h('span', 'num', game.formatBest ? game.formatBest(best) : String(best)));
     a.append(l, m); g.append(a);
   });
   v.append(g); return v;
 }
 
-/* Zeigt Fehler sichtbar an, statt einen leeren Bildschirm zu hinterlassen */
+/** Zeigt einen Fehler sichtbar an, statt einen leeren Bildschirm zu hinterlassen. */
 function showError(e) {
   app.replaceChildren();
   const v = h('main', 'view home');
@@ -943,6 +1263,7 @@ function showError(e) {
   v.append(b); app.append(v);
 }
 
+/** Zeigt je nach URL-Hash Startseite oder Spiel. Räumt vorher das zuvor aktive Spiel auf. */
 function route() {
   try {
     if (active && active.destroy) active.destroy(); active = null;
